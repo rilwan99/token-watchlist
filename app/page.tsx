@@ -1,67 +1,55 @@
-import Image from "next/image";
+const tokens = [
+  { symbol: "BTC", name: "Bitcoin", price: "$64,210.00", change: "+2.41%", marketCap: "$1.26T" },
+  { symbol: "ETH", name: "Ethereum", price: "$3,180.55", change: "+1.08%", marketCap: "$382.4B" },
+  { symbol: "SOL", name: "Solana", price: "$148.72", change: "-3.62%", marketCap: "$68.9B" },
+  { symbol: "ARB", name: "Arbitrum", price: "$0.9412", change: "+5.77%", marketCap: "$3.4B" },
+  { symbol: "LINK", name: "Chainlink", price: "$14.03", change: "-0.94%", marketCap: "$8.7B" },
+];
 
 export default function Home() {
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
+        <div className="flex w-full flex-col items-center gap-6 text-center sm:items-start sm:text-left">
           <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+            Token watchlist
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                <tr>
+                  <th scope="col" className="py-3 pr-4 font-medium">Token</th>
+                  <th scope="col" className="py-3 pr-4 font-medium">Symbol</th>
+                  <th scope="col" className="py-3 pr-4 text-right font-medium">Price</th>
+                  <th scope="col" className="py-3 pr-4 text-right font-medium">24h</th>
+                  <th scope="col" className="py-3 text-right font-medium">Market cap</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
+                {tokens.map((token) => (
+                  <tr key={token.symbol}>
+                    <td className="py-3 pr-4 text-black dark:text-zinc-50">{token.name}</td>
+                    <td className="py-3 pr-4 text-zinc-500 dark:text-zinc-400">{token.symbol}</td>
+                    <td className="py-3 pr-4 text-right tabular-nums text-black dark:text-zinc-50">
+                      {token.price}
+                    </td>
+                    <td
+                      className={`py-3 pr-4 text-right tabular-nums ${
+                        token.change.startsWith("-")
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-green-600 dark:text-green-400"
+                      }`}
+                    >
+                      {token.change}
+                    </td>
+                    <td className="py-3 text-right tabular-nums text-zinc-500 dark:text-zinc-400">
+                      {token.marketCap}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
     </div>
