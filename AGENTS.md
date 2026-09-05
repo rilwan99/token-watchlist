@@ -48,3 +48,17 @@ The API key stays server-side in `JUPITER_API_KEY` (never `NEXT_PUBLIC_`). The c
 - Desktop table, mobile cards. Same data and flows; both primary.
 
 Out of scope: trading, wallet connection, charts, alerts, multiple watchlists, export.
+
+## How to work here
+
+This is a small app. Keep it small.
+
+- Build exactly what was asked. No extra flags, config, routes, or "while I was in there" features.
+- Server Components by default; `"use client"` only where interactivity actually needs it.
+- No new abstraction until the same code exists in three places. No `utils/`, `hooks/`, or generic wrappers for one caller.
+- No tests unless asked. No mocks, fixtures, or scaffolding.
+- Comments only for non-obvious logic — nullable API fields, Jupiter quirks, an invariant that isn't visible from the code. Never restate what the line does.
+- No new dependencies without saying why one is needed.
+- Follow the patterns already in the file you're editing rather than importing a better one.
+- Multi-file change: list the files and a one-line purpose each, then write the code. Skip preambles and alternative architectures.
+- Ambiguous? Pick the simplest option that fits existing patterns and state the assumption in one sentence. Ask only when the readings lead to materially different work.

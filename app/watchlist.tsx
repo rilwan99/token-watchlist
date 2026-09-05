@@ -16,8 +16,8 @@ export default function Watchlist() {
     const [error, setError] = useState<string | null>(null);
     const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
-    // No synchronous setState here: the effect below relies on the initial
-    // "loading" status instead, so the first render is not immediately re-rendered.
+    // Loads the saved watchlist, fetches fresh market data, and updates the load state.
+    // Memoized with useCallback to keep a stable function reference
     const load = useCallback(async () => {
         try {
             const next = await fetchWatchlist(loadMints());
@@ -31,11 +31,9 @@ export default function Watchlist() {
         }
     }, []);
 
-    // The mint list lives in localStorage, so it cannot be read during render without an
-    // SSR/client mismatch. Reading it after mount and fetching a snapshot is exactly the
-    // "synchronize with an external system" case; there is no server render to hoist it into.
+    // Loads the persisted watchlist after mount (avoid hyration mismatch)
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         void load();
     }, [load]);
 
