@@ -27,19 +27,27 @@ There is no test script.
 
 ## Status
 
-Built: load from storage, search, manual refresh, the desktop table.
+Built: load from storage, search, add, remove, manual refresh, the desktop table.
 
-Not built yet: add, remove, sort, the 5m/1h/6h/24h switch (the table is pinned to 24h), and the mobile card layout.
+Not built yet: sort, the 5m/1h/6h/24h switch (the table is pinned to 24h), and the mobile card layout.
 
 ## Decisions
 
 The interesting parts of this app are the choices, not the code.
 
-**Storage holds mint addresses, never market data.** A cached price is wrong the moment it is written, and a table that renders a stale `$148` on load is worse than one that renders a spinner for 300ms. `localStorage` holds the mint list and one `seeded` flag; everything else is fetched fresh.
+**Storage holds identity, never market data.** A cached price is wrong the moment it is written, so `localStorage` holds only what doesn't go stale — mint, symbol, name, icon URL, in saved order — plus one `seeded` flag. Price, market cap, liquidity and holders are always fetched fresh.
+
+That split is what lets a reload paint immediately. The rows come from storage on the first commit with an em dash in every numeric column, and the fetch fills the numbers in a moment later. There's no full-page spinner, because knowing what's on your list never needed the network — only knowing what it's worth does.
+
+**Storage is written by an add or a remove, and by nothing else.** No effect mirrors state into it, and no fetch writes back to it. That's a correctness property rather than tidiness: a refresh that was already in flight when you removed a row returns a response containing that row, and since the response only ever populates the mint-keyed metrics map — never the entry list — it cannot resurrect it. The cost is that the seeded SOL row carries no stored icon until it's re-added, so it shows a placeholder disc for the few hundred milliseconds before the first fetch lands. Writing identity back on every refresh would fix that and reopen the race; the flash is the cheaper problem.
+
+**Everything is keyed by mint address, and nothing by symbol.** Search `unipcs` and Jupiter returns four tokens whose symbol and name are permutations of UNIPCS and BONKGUY, including one called `BONKGUY` named "Unipcs" and one called `UNIPCS` named "bonkguy was right". Symbol as a key adds the wrong one of those and then reports a duplicate when you add the right one.
+
+**A saved token the API stops returning keeps its row.** It renders from the stored name and icon with dashes for every metric, rather than vanishing — a token can lose its liquidity or fall out of the index, and neither is the user changing their mind. The same code path is what makes the first paint of a reload work, so it isn't a special case anyone has to remember to maintain. Storage that is malformed, absent, or half-written by a second tab falls back to an empty list; duplicate mints are collapsed on the way in. Two tabs are last-write-wins, which is fine for a list of favourites — crashing is not.
 
 **SOL is seeded on the first visit only, tracked by that flag.** The obvious version — "if the list is empty, add SOL" — resurrects SOL every time you remove it, because it treats emptiness as the signal. An empty watchlist is a valid, deliberate state here, so it can't also mean "never initialized".
 
-**The whole watchlist loads in one request.** Jupiter's search endpoint accepts up to 100 comma-separated mints, so N tokens cost 1 request. That makes refresh atomic — every row comes from the same response and is the same age — and it sets the soft cap of ~50 tokens. The response isn't guaranteed to come back in the order the mints were sent, so `fetchWatchlist` re-keys it by mint and restores the stored order.
+**The whole watchlist loads in one request.** Jupiter's search endpoint accepts up to 100 comma-separated mints, so N tokens cost 1 request. That makes refresh atomic — every row comes from the same response and is the same age — and it sets the soft cap of ~50 tokens. The response isn't guaranteed to come back in the order the mints were sent, or to be complete, and neither matters: `fetchTokens` hands it over as-is and the stored entry list decides what rows exist and in what order.
 
 **Snapshot at load, not a live feed.** No polling, no websocket — a manual refresh button and an explicit `Updated 2:32:07 PM` beside it. A table that silently mutates under you is only useful if you trust its age, and the honest way to earn that is to show the age and let the user re-ask.
 
@@ -59,13 +67,23 @@ An earlier version split the list under an "Unverified · low liquidity" divider
 
 **One row is dropped, and it isn't a ranking call.** Jupiter matches names as well as symbols and defaults to 20 results, which breaks the most likely query this app will ever see: `sol` matches "**Sol**utions" and "**Sol**ar", so 14 of those 20 slots go to tokenised equities, pushing JitoSOL, mSOL and PSOL to ranks 18–20 and dropping bSOL and dSOL entirely. What those 14 share isn't being stocks — none has a 24h change, nine have no price, and they hold two to twelve addresses each. Every column this app renders is blank for them, which makes them empty results rather than weak ones. So `searchUpstream` sends `limit=50` and drops rows with null liquidity, leaving `sol` opening on SOL, JupSOL, SOLCAT, JitoSOL, mSOL, PSOL, bSOL.
 
-Filtering Jupiter's `rwa` tag instead was tempting and wrong for the same reason the divider was: it's a category judgment layered over a ranking, and it deletes `NVDAx` — $1.86M of liquidity, first result for `nvda` — along with `TSLAx` and `SPYx`. Tokenised equities are SPL mints that fill every column; "Solana only" is a rule about chains. Mint queries skip both the filter and the limit: pasting an address names one exact token, and `fetchWatchlist` rehydrates through that same request shape, so filtering it would make a token that lost its liquidity vanish from the table while its mint sat in storage, unable to come back.
+Filtering Jupiter's `rwa` tag instead was tempting and wrong for the same reason the divider was: it's a category judgment layered over a ranking, and it deletes `NVDAx` — $1.86M of liquidity, first result for `nvda` — along with `TSLAx` and `SPYx`. Tokenised equities are SPL mints that fill every column; "Solana only" is a rule about chains. Mint queries skip both the filter and the limit: pasting an address names one exact token, and `fetchTokens` rehydrates through that same request shape, so filtering it would make a token that lost its liquidity vanish from the table while its mint sat in storage, unable to come back.
 
 **With the divider gone, the row carries the whole story.** Unverified rows read recessive: muted symbol, dimmed icon, launchpad as a tag, and a `?` in the same fixed-width slot that holds the verified `✓`. That slot always renders one glyph or the other, because the row's most important fact shouldn't be signalled by an absence. The launchpad comes from Jupiter's `launchpad` field, not from sniffing the mint suffix, which lies in both directions: a `…bonk` suffix appears on verified letsbonk.fun launches, and plenty of pump.fun tokens carry none.
 
 **The pin answers "is this what you typed", not "is this safe".** The exact symbol match is pinned to the top, but the accent border and `Exact` tag only render in accent ink when that token is also verified. When several unverified tokens share the typed symbol the pin is suppressed entirely — `BONKGUY` returns three, and decorating one as *the* match is a claim nothing on the row can support.
 
 **The mint address is on the row, but not in the way.** It's the only field that identifies a token beyond doubt and the least scannable thing you could put in a list, so it replaces the name line on hover or keyboard focus, in mono, with a copy button. The two layers swap by opacity rather than `display`, because a `display: none` button can't be tabbed to — reaching that button is what reveals the address, and it's the row's only tab stop. Paste a mint into the search box and every row shows its address without a hover.
+
+**One star is the control and the indicator.** Every row — search result and watchlist alike — ends in a star: filled means saved, outline means not, clicking toggles. A badge that reports membership plus a button that changes it are two things that can disagree; one target that does both cannot. It replaced an `On list` text badge that said the same thing in more space and did nothing.
+
+Its column is reserved in the resting row, so nothing shifts when you hover. A filled star never hides, because on a short watchlist sitting behind the open panel it's the only thing saying "you already have this". An empty one is an invitation, and eight of them down a panel is noise, so above 480px it fades in on hover or keyboard focus — by opacity, never `display`, because it's a tab stop and tabbing to it is how a keyboard user finds it. Below 480px there's no hover to wait for, so it stays visible at a 44px target.
+
+Adding uses the token object the search already returned, so the new row arrives complete without a second request, and the panel stays open with the query intact — one search is usually worth more than one token. Removal is one click with no confirmation: re-adding is a search away, and the search row will already show it as saved.
+
+**Arrow keys move a highlight; Enter toggles it.** Up and down walk the results and wrap at both ends, Enter stars the highlighted row and leaves the panel open, Escape empties the field, which closes the panel and returns focus to the input. The highlight starts on nothing, so Enter on a fresh search does nothing rather than adding whatever happened to rank first. The pointer moves the same index on `mouseenter`, so hovering row 7 and pressing Enter can never toggle row 3.
+
+**Unverified and illiquid tokens are addable, and they carry their warnings with them.** Blocking them would be the wrong call — a thin unverified token is exactly the kind of thing a watchlist is for, and the row's job is to say what a token is, not to decide. So the `?` glyph, the launchpad tag, the dimmed icon and the danger-colored liquidity all follow the token into the watchlist row, where it's actually looked at from then on. They render only when the live token is in hand: for a row painted from storage alone, verification is unknown, and a `?` would be a stronger claim than the app can make.
 
 **The API key never reaches the browser.** The route handler at `GET /api/tokens` is the only thing that talks to Jupiter (`server-only` is imported in `app/lib/tokens.ts` to enforce that at build time). It also validates mint batches — base58 shape, 100 maximum — so a malformed request fails locally instead of burning an upstream call.
 
@@ -120,13 +138,15 @@ All four timeframes arrive in the same response, which is why switching between 
 app/
 ├── api/tokens/route.ts  # The only route: validates the query, calls Jupiter
 ├── lib/tokens.ts        # Server-side Jupiter client and response normalization
-├── lib/types.ts         # Token, TokenStats, Timeframe
+├── lib/types.ts         # Token, TokenStats, Timeframe, WatchEntry
 ├── lib/api.ts           # Browser-side client for /api/tokens
-├── lib/storage.ts       # localStorage: mint list and the seeded flag
-├── lib/format.ts        # Price, percent, compact USD, count, mint truncation
-├── watchlist.tsx        # Client component: state, effects, page layout
+├── lib/storage.ts       # localStorage: saved identities and the seeded flag
+├── lib/format.ts        # Price, percent, compact USD, count, mint truncation, liquidity threshold
+├── watchlist.tsx        # Client component: the entry list, metrics, keyboard, page layout
 ├── search-results.tsx   # The results panel: header, rows, empty and error states
 ├── token-table.tsx      # The watchlist table
+├── star-button.tsx      # The add/remove toggle both row types use
+├── token-icon.tsx       # Token icon with a fallback for missing and broken URLs
 ├── page.tsx             # Server component shell
 ├── layout.tsx           # Root layout and metadata
 └── globals.css          # Tailwind import and theme tokens

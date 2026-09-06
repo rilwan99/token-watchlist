@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { formatCompactUsd, formatMint } from "@/app/lib/format";
+import { useEffect, useRef, useState } from "react";
+import StarButton from "@/app/star-button";
+import TokenIcon from "@/app/token-icon";
+import { formatCompactUsd, formatMint, isThinLiquidity } from "@/app/lib/format";
 import type { OrganicScoreLabel, Token, TokenStats } from "@/app/lib/types";
 
 // A union rather than parallel useStates: results and an error can never render together.
@@ -12,6 +14,9 @@ export type SearchState =
   | { kind: "loading" }
   | { kind: "ready"; query: string; results: Token[]; stale: boolean }
   | { kind: "error"; message: string };
+
+/** One rendered row. `exact` is the pin, which `arrange` assigns to at most one row. */
+export type SearchRowItem = { token: Token; exact: boolean };
 
 // In normal flow inside the slot above, not floating: the slot already reserves the space.
 // Every state fills that slot rather than sizing to its content - a one-row message in a
@@ -30,28 +35,27 @@ const SCROLLER = "min-h-0 flex-1 divide-y divide-edge";
 // scrolling result list does.
 const SKELETON_ROWS = 8;
 
-// Below this, liquidity renders in the danger color: a token nobody can exit is a worse
-// trap than an unverified one.
-const LOW_LIQUIDITY_USD = 10_000;
-
 // Base58 omits 0, O, I and l. Solana mints are 32-44 characters.
 const BASE58_MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 // One template shared by the header and every row, so the two can never drift apart.
 // Columns drop right to left as width shrinks - organic, then liquidity, then volume -
-// leaving market cap last. Below 480px the grid collapses to identity alone and the
-// metrics move to an inline line under the name.
+// leaving market cap last. Below 480px the grid collapses to identity and the star, and the
+// metrics move to an inline line under the name. The star column never drops: it is the only
+// way to add a token, and it is the last column at every width so the hit target is where
+// the thumb already is.
 const GRID =
-  "grid items-center gap-2 grid-cols-[minmax(0,1fr)]" +
-  " min-[480px]:grid-cols-[minmax(0,1fr)_74px]" +
-  " min-[560px]:grid-cols-[minmax(0,1fr)_74px_74px]" +
-  " min-[640px]:grid-cols-[minmax(0,1fr)_74px_74px_13px_70px]" +
-  " min-[720px]:grid-cols-[minmax(0,1fr)_74px_74px_13px_70px_56px]";
+  "grid items-center gap-2 grid-cols-[minmax(0,1fr)_44px]" +
+  " min-[480px]:grid-cols-[minmax(0,1fr)_74px_32px]" +
+  " min-[560px]:grid-cols-[minmax(0,1fr)_74px_74px_32px]" +
+  " min-[640px]:grid-cols-[minmax(0,1fr)_74px_74px_13px_70px_32px]" +
+  " min-[720px]:grid-cols-[minmax(0,1fr)_74px_74px_13px_70px_56px_32px]";
 const CELL_MCAP = "hidden text-right tabular-nums min-[480px]:block";
 const CELL_VOLUME = "hidden text-right tabular-nums min-[560px]:block";
 const CELL_RULE = "hidden justify-center min-[640px]:flex";
 const CELL_LIQUIDITY = "hidden text-right tabular-nums min-[640px]:block";
 const CELL_ORGANIC = "hidden items-center justify-end gap-1.5 min-[720px]:flex";
+const CELL_STAR = "flex justify-center";
 
 // Jupiter reports the two sides separately and never a total. A token can legitimately
 // have buys and no sells, so only a missing pair reads as unknown.
@@ -61,7 +65,8 @@ function volume24h(stats: TokenStats): number | null {
 }
 
 /**
- * Pins the exact symbol match to the top and leaves everything else in Jupiter's order.
+ * Orders the rows: the exact symbol match pinned to the top, everything else left in
+ * Jupiter's order.
  *
  * Jupiter already ranks by verification, liquidity and organic score. Checked against the
  * live API on 2026-09-06: `USDC`, `BONK`, `JUP` and `TRUMP` each returned the real token
@@ -70,30 +75,47 @@ function volume24h(stats: TokenStats): number | null {
  * verified `DJTx` below a divider that called it unverified.
  *
  * The pin is suppressed when several unverified tokens share the typed symbol: `BONKGUY`
- * returns three, and decorating one as the match is a claim nothing here can support. A
- * verified match settles it whenever there is one.
+ * returns three, and decorating one as the match is a claim nothing here can support.
+ * A verified match settles it whenever there is one.
+ *
+ * Exported because the keyboard highlight indexes into this order, and the key handler lives
+ * on the search wrapper alongside the input rather than in here.
  */
-function arrange(results: Token[], query: string) {
+export function arrange(results: Token[], query: string): SearchRowItem[] {
   const symbol = query.trim().toLowerCase();
   const exact = results.filter((token) => token.symbol.toLowerCase() === symbol);
   const pinned =
     exact.find((token) => token.isVerified) ??
     (exact.length === 1 ? exact[0] : null) ??
     null;
-  return { pinned, rest: results.filter((token) => token !== pinned) };
+  const rest = results
+    .filter((token) => token !== pinned)
+    .map((token) => ({ token, exact: false }));
+  return pinned === null ? rest : [{ token: pinned, exact: true }, ...rest];
 }
 
 /**
  * Renders the four panel states. There is no state for an empty field: the panel is closed
  * below one character, so this only ever renders against a query the user has typed.
+ *
+ * `rows` is `arrange(state.results, state.query)`, computed by the caller so the key handler
+ * and this list agree on what row 3 is.
  */
 export default function SearchResults({
   state,
-  watchlist,
+  rows,
+  watched,
+  highlighted,
+  onHighlight,
+  onToggle,
   onRetry,
 }: {
   state: SearchState;
-  watchlist: Set<string>;
+  rows: SearchRowItem[];
+  watched: Set<string>;
+  highlighted: number;
+  onHighlight: (index: number) => void;
+  onToggle: (token: Token) => void;
   onRetry: () => void;
 }) {
   // Only reached before the first result of a session lands. Once a query has returned
@@ -133,7 +155,7 @@ export default function SearchResults({
     );
   }
 
-  if (state.results.length === 0) {
+  if (rows.length === 0) {
     return (
       <div
         role="status"
@@ -151,7 +173,6 @@ export default function SearchResults({
     );
   }
 
-  const { pinned, rest } = arrange(state.results, state.query);
   // A base58 query means the user pasted a mint, so every row shows the address in place
   // of the name rather than waiting for a hover.
   const addressQuery = BASE58_MINT.test(state.query);
@@ -164,22 +185,16 @@ export default function SearchResults({
     >
       <ul aria-label="Search results" className={`${SCROLLER} overflow-y-auto`}>
         <ResultsHeader />
-        {pinned === null ? null : (
+        {rows.map((row, index) => (
           <SearchRow
-            key={pinned.id}
-            token={pinned}
+            key={row.token.id}
+            token={row.token}
+            exact={row.exact}
             addressQuery={addressQuery}
-            onWatchlist={watchlist.has(pinned.id)}
-            exact
-          />
-        )}
-        {rest.map((token) => (
-          <SearchRow
-            key={token.id}
-            token={token}
-            addressQuery={addressQuery}
-            onWatchlist={watchlist.has(token.id)}
-            exact={false}
+            watched={watched.has(row.token.id)}
+            highlighted={index === highlighted}
+            onHighlight={() => onHighlight(index)}
+            onToggle={() => onToggle(row.token)}
           />
         ))}
       </ul>
@@ -207,6 +222,7 @@ function ResultsHeader() {
       <span className={CELL_RULE} />
       <span className={CELL_LIQUIDITY}>Liquidity</span>
       <span className={CELL_ORGANIC}>Organic</span>
+      <span className={CELL_STAR} />
     </li>
   );
 }
@@ -244,6 +260,7 @@ function SkeletonRow() {
         <span className="h-1 w-[26px] shrink-0 rounded-full bg-edge" />
         <span className="h-3 w-4 rounded bg-edge/60" />
       </span>
+      <span className={CELL_STAR} />
     </li>
   );
 }
@@ -259,29 +276,46 @@ const ORGANIC_BAR: Record<OrganicScoreLabel, string> = {
  * the row carries that itself rather than the list re-grouping around it: an unverified
  * token reads recessive - dimmed icon, muted symbol, a `?` where the verified check sits,
  * launch origin - and liquidity takes the danger color once it drops under the threshold.
+ * None of that blocks the star. A thin unverified token is exactly the kind of thing someone
+ * watches; the row's job is to say what it is, not to decide for them.
  */
 function SearchRow({
   token,
-  addressQuery,
-  onWatchlist,
   exact,
+  addressQuery,
+  watched,
+  highlighted,
+  onHighlight,
+  onToggle,
 }: {
   token: Token;
-  addressQuery: boolean;
-  onWatchlist: boolean;
   exact: boolean;
+  addressQuery: boolean;
+  watched: boolean;
+  highlighted: boolean;
+  onHighlight: () => void;
+  onToggle: () => void;
 }) {
-  const [iconBroken, setIconBroken] = useState(false);
   const [copied, setCopied] = useState(false);
+  const row = useRef<HTMLLIElement>(null);
 
   const volume = volume24h(token.stats["24h"]);
-  const thin = token.liquidity !== null && token.liquidity < LOW_LIQUIDITY_USD;
+  const thin = isThinLiquidity(token.liquidity);
   const organic = token.organicScore === null ? null : Math.round(token.organicScore);
 
   // The pin answers "is this what you typed", not "is this safe". On an unverified match the
   // accent would read as endorsement the row cannot back, so only a verified pin gets it;
   // an unverified one keeps the position and the tag in neutral ink.
   const endorsed = exact && token.isVerified;
+
+  // Arrowing past the bottom of the scroller has to bring the row with it. `nearest` is a
+  // no-op when the row is already fully visible, so the pointer moving the highlight around
+  // inside the panel never yanks the list; `scroll-mt-7` keeps the top row clear of the
+  // sticky header it would otherwise land underneath.
+  useEffect(() => {
+    if (!highlighted) return;
+    row.current?.scrollIntoView({ block: "nearest" });
+  }, [highlighted]);
 
   // The two layers swap by opacity rather than display, because the copy button has to stay
   // in the tab order while hidden - reaching it by keyboard is what reveals the address.
@@ -291,6 +325,13 @@ function SearchRow({
   const addressLayer = addressQuery
     ? "opacity-100"
     : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100";
+
+  // A filled star is the row's only statement that the token is already saved, so it is never
+  // hidden. An empty one is an invitation, and eight of them down the panel is noise, so on a
+  // pointer it waits for the row. Touch has no hover to wait for: it stays.
+  const starLayer = watched
+    ? "opacity-100"
+    : "opacity-100 min-[480px]:opacity-0 min-[480px]:group-hover:opacity-100 min-[480px]:group-focus-within:opacity-100";
 
   function handleCopy() {
     navigator.clipboard.writeText(token.id).then(
@@ -306,24 +347,19 @@ function SearchRow({
 
   return (
     <li
-      className={`group ${GRID} border-l-2 px-3 py-2 text-sm ${
-        endorsed ? "border-accent bg-accent/5" : exact ? "border-muted" : "border-transparent"
-      }`}
+      ref={row}
+      onMouseEnter={onHighlight}
+      className={`group ${GRID} scroll-mt-7 border-l-2 px-3 py-2 text-sm ${
+        endorsed ? "border-accent" : exact ? "border-muted" : "border-transparent"
+      } ${highlighted ? "bg-edge/40" : endorsed ? "bg-accent/5" : ""}`}
     >
       <div className="flex min-w-0 items-center gap-2">
-        {token.icon === null || iconBroken ? (
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-edge text-xs text-muted">
-            ?
-          </span>
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote hosts
-          <img
-            src={token.icon}
-            alt=""
-            onError={() => setIconBroken(true)}
-            className={`size-7 shrink-0 rounded-full ${token.isVerified ? "" : "opacity-40"}`}
-          />
-        )}
+        <TokenIcon
+          src={token.icon}
+          symbol={token.symbol}
+          className="size-7"
+          dimmed={!token.isVerified}
+        />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span
@@ -354,13 +390,6 @@ function SearchRow({
                 }`}
               >
                 Exact
-              </span>
-            ) : null}
-            {/* A short watchlist sits entirely behind the open panel, so the row has to say
-                this itself rather than leaving the user to check the table. */}
-            {onWatchlist ? (
-              <span className="shrink-0 rounded border border-edge bg-edge px-1 text-[10px] text-ink">
-                On list
               </span>
             ) : null}
           </div>
@@ -419,6 +448,14 @@ function SearchRow({
             <span className="tabular-nums text-muted">{organic}</span>
           </>
         )}
+      </span>
+      <span className={CELL_STAR}>
+        <StarButton
+          filled={watched}
+          symbol={token.symbol}
+          onClick={onToggle}
+          className={`transition-opacity ${starLayer}`}
+        />
       </span>
     </li>
   );

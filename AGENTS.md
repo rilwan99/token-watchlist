@@ -42,15 +42,20 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 6. **Timeframe** — 5m / 1h / 6h / 24h across all change columns. No refetch; all four arrive in one response.
 7. **Refresh** — manual button plus "last updated" timestamp.
 
-Built: load, search, refresh. Not built yet: add, remove, sort, the timeframe switch (the table is pinned to 24h at `app/token-table.tsx:9`), and the mobile card layout. Update this line as they land.
+Built: load, search, add, remove, refresh. Not built yet: sort, the timeframe switch (the table is pinned to 24h at `app/token-table.tsx:14`), and the mobile card layout. Update this line as they land.
 
 ## Settled decisions
 
 ### Data and storage
 
-- Storage holds mint addresses and a `seeded` flag. Market data is always fetched fresh.
-- SOL is seeded on the first visit only, tracked by that flag rather than by an empty list, so removed SOL stays removed. An empty watchlist is valid and renders the empty view.
-- Snapshot at load, not a live feed. No polling; refresh is manual. Spinner while loading.
+- Storage holds identity only - mint, symbol, name, icon URL, in saved order - plus a `seeded` flag. Never price, market cap, liquidity or holders: a cached number is wrong the moment it is written.
+- Storage is written only by an add or a remove, never by a fetch. That is what stops a response that was already in flight from resurrecting a row the user just removed.
+- Rows paint from storage on the first commit, with dashes in the numeric columns, and the fetch fills them in. Nothing waits on the network to know what is on the list, so there is no full-page spinner - only the Refresh button's own label and a `Refreshing...` state.
+- The mint is the key everywhere. Symbols collide - `unipcs` returns four tokens whose symbol or name is some arrangement of UNIPCS and BONKGUY - so keying by symbol adds the wrong token and invents duplicates.
+- A stored mint Jupiter no longer returns keeps its row and its stored name, with dashes for every metric. Dropping it silently would lose a token the user chose.
+- Malformed, absent or half-written storage falls back to an empty list rather than throwing, and duplicate mints are collapsed on the way in. Two tabs are last-write-wins; that is acceptable, crashing is not.
+- SOL is seeded on the first visit only, tracked by that flag rather than by an empty list, so removed SOL stays removed. An empty watchlist is valid and renders the empty view - one line of copy, no header row over nothing.
+- Snapshot at load, not a live feed. No polling; refresh is manual. A failed refresh reports itself beside the timestamp and leaves the table standing.
 - One anonymous user, one watchlist, one device. Solana only. Soft cap ~50 tokens, under the 100-mint batch limit.
 - Sort and timeframe are session state, not persisted.
 - Desktop table, mobile cards. Same data and flows; both primary.
@@ -64,21 +69,25 @@ Built: load, search, refresh. Not built yet: add, remove, sort, the timeframe sw
 - A settled answer persists dimmed while a newer query loads, and "no tokens match" is an answer too. A failure is not: its Retry would sit there live, inviting a second request mid-flight. So the skeleton shows only when there is nothing to preserve — the first search of a session, or the one after a failure.
 - The no-match message and the exact pin read the query carried on the `ready` state, never the live input; during the debounce the two differ.
 - Skeleton rows reuse `GRID` and the real cell classes at the 53px a real row measures, so results land without moving a column or row edge. Eight, so the last clips as a scrolling list does. `aria-hidden`, with an `sr-only` "Searching...".
-- Escape is handled on the search wrapper, not the input, so it reaches the panel's tab stops too. Those go `inert` on close, so dismissing must return focus to the input. The query is kept; the next keystroke reopens.
+- Escape is handled on the search wrapper, not the input, so it reaches the panel's tab stops too. Those go `inert` on close, so dismissing must return focus to the input. Escape empties the field, which closes the panel through `open`. An outside click dismisses without clearing, and the next keystroke reopens.
+- Arrow up/down move a highlight through `arrange`'s order, wrapping at both ends, and Enter toggles the highlighted row's star without closing the panel. The highlight starts at nothing, so Enter on a fresh search adds nothing. Pointer and keyboard share it: `mouseenter` moves the index, so the two never disagree about which row Enter means. `arrange` is exported for this - the key handler lives on the wrapper with the input, and both sides have to agree on what row 3 is.
 - The results header is a sticky row inside the scroll container — outside it, the scrollbar drops every value ~15px left of its label.
 
 ### Result rows
 
 - Jupiter's order is kept, never re-grouped or re-sorted; only the exact match moves. A verified/liquid split under an "Unverified · low liquidity" divider was tried and removed: the list already arrives risk-stratified. Don't reintroduce a grouping rule coarser than the ranking it overrides.
 - Name searches send `limit=50` and drop null-liquidity rows in `searchUpstream` — those render blank in every column the app has, so they are empty results, not weak ones. Not an asset-class rule: a filter on the `rwa` tag was rejected because it deletes `NVDAx` and `TSLAx`, which pass on their own numbers.
-- Mint queries (`isMintQuery`) skip both the filter and `limit` — the caller named exact tokens, and `fetchWatchlist` rehydrates through the same shape, so filtering would strand a watched token in storage. The route caps batches at 100.
+- Mint queries (`isMintQuery`) skip both the filter and `limit` — the caller named exact tokens, and `fetchTokens` rehydrates through the same shape, so filtering would strand a watched token in storage. The route caps batches at 100.
 - The exact-symbol pin means "this is what you typed", not "this is safe": accent border and `Exact` tag in accent ink only when the token is also verified, neutral otherwise, suppressed entirely when several unverified tokens share the symbol.
-- Every row shows whether the token is already on the watchlist — a short watchlist sits entirely behind the open panel.
+- A star in a trailing fixed column is both the add control and the membership signal - filled means saved, outline means not, clicking toggles. One target that states the fact and changes it cannot disagree with itself, which a badge plus a separate button can. It replaced an `On list` text badge. A short watchlist sits entirely behind the open panel, so the row has to carry this itself.
+- The star's column is reserved in the resting row, so nothing shifts on hover. A filled star never hides; an empty one fades in on hover or focus above 480px and stays visible below it, where there is no hover and the target is 44px. Opacity, not `display` - it is a tab stop, and tabbing to it is how a keyboard reveals it.
+- Adding uses the token object search already returned. No second fetch, and the row is complete before the next refresh.
+- Unverified and thin tokens are addable. The row says what a token is; it does not decide. The `?` glyph, the launchpad tag and the danger-colored liquidity all follow the token into the watchlist row, where they are read from then on - except when there are no live metrics, since unknown verification is not the same claim as unverified.
 - Row grid: identity, market cap, 24h volume, a vertical rule, liquidity, organic. Market cap and volume are compared against each other in primary ink; liquidity and organic are checked against a threshold in secondary, and liquidity turns `text-down` below it. Units live in the header row, not per line.
 - Unverified rows read recessive: muted symbol, 40%-opacity icon, launchpad tag. No pill — one fixed-width slot holds `✓` or `?` so nothing after it shifts. It always renders a glyph; this is the row's primary verification signal, and absence is too quiet to carry it.
 - The mint is off the row by default; hover or keyboard focus swaps the name line for the truncated address plus a copy button. Opacity, not `display` — the button is the row's only tab stop. A base58 query (32-44 chars) shows the address on every row without hover.
 - `formatCompactUsd` is three significant figures, so every cell caps at five characters and the right-aligned edge holds. Missing values are an em dash, never `$0`.
-- The panel stays open after an add so several tokens can go in one pass; the row itself flips to added.
+- The panel stays open after an add and the query is kept, so several tokens can go in one pass; the row's star flips to filled.
 
 Out of scope: trading, wallet connection, charts, alerts, multiple watchlists, export.
 
@@ -92,7 +101,8 @@ This is a small app. Keep it small.
 - Server Components by default; `"use client"` only where interactivity actually needs it.
 - No `useMemo` / `useCallback` without a stated reason.
 - No new abstraction until the same code exists in three places. No `utils/`, `hooks/`, or generic wrappers for one caller.
-- Components sit flat in `app/`, one file each: `watchlist.tsx` owns state and layout, `search-results.tsx` and `token-table.tsx` render. Splitting a file past ~300 lines along a seam that already exists is fine; inventing a `components/` directory or shared prop types to hold them is not.
+- Components sit flat in `app/`, one file each: `watchlist.tsx` owns state and layout, `search-results.tsx` and `token-table.tsx` render, and `star-button.tsx` and `token-icon.tsx` are the two controls both of those rows need. Splitting a file past ~300 lines along a seam that already exists is fine; inventing a `components/` directory or shared prop types to hold them is not.
+- One source of truth for membership: the ordered entry list in `watchlist.tsx`. Live metrics are a separate mint-keyed map that holds no membership. Never a second list, and never an effect syncing two.
 - No tests unless asked. No mocks, fixtures, or scaffolding.
 - Comments for non-obvious logic and short function-level summaries — nullable API fields, Jupiter quirks, an invariant that isn't visible from the code. Don't annotate lines with what they already say.
 - No new dependencies without saying why one is needed.

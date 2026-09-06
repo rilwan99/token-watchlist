@@ -32,6 +32,15 @@ export function formatMint(mint: string): string {
   return `${mint.slice(0, 4)}...${mint.slice(-4)}`;
 }
 
+// Below this, liquidity renders in the danger color: a token nobody can exit is a worse trap
+// than an unverified one. Unknown liquidity is not thin - it is unknown, and reads as a dash.
+const LOW_LIQUIDITY_USD = 10_000;
+
+/** Shared by the search row and the watchlist row, so one threshold governs both. */
+export function isThinLiquidity(liquidity: number | null): boolean {
+  return isNumber(liquidity) && liquidity < LOW_LIQUIDITY_USD;
+}
+
 export function formatCount(value: number | null): string {
   if (!isNumber(value)) return DASH;
   return value.toLocaleString("en-US", {

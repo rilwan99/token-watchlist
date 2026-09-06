@@ -29,12 +29,12 @@ async function requestTokens(query: string, signal?: AbortSignal): Promise<Token
   return body.tokens;
 }
 
-/** One batch request for the whole watchlist, returned in stored order. */
-export async function fetchWatchlist(mints: string[]): Promise<Token[]> {
+/**
+ * One batch request for the whole watchlist. The response is returned as it arrives, in
+ * whatever order and however short: row order and row membership belong to the stored entry
+ * list, and a mint Jupiter no longer answers for keeps its row with dashed-out metrics.
+ */
+export async function fetchTokens(mints: string[]): Promise<Token[]> {
   if (mints.length === 0) return [];
-  const tokens = await requestTokens(mints.join(","));
-  const byMint = new Map(tokens.map((token) => [token.id, token]));
-  return mints
-    .map((mint) => byMint.get(mint))
-    .filter((token): token is Token => token !== undefined);
+  return requestTokens(mints.join(","));
 }
