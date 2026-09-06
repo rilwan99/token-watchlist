@@ -83,6 +83,7 @@ export default function TokenCard({
           src={icon}
           symbol={symbol}
           className="size-8"
+          labelClassName="text-[12px]"
           dimmed={token !== null && !token.isVerified}
         />
         <span className="min-w-0 flex-1">

@@ -270,6 +270,7 @@ function SearchRow({
           src={token.icon}
           symbol={token.symbol}
           className="size-7"
+          labelClassName="text-[11px]"
           dimmed={!token.isVerified}
         />
         <div className="min-w-0 flex-1">

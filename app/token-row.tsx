@@ -64,6 +64,7 @@ export default function TokenRow({
             src={icon}
             symbol={symbol}
             className="size-[22px]"
+            labelClassName="text-[9px]"
             dimmed={token !== null && !token.isVerified}
           />
           {/*
