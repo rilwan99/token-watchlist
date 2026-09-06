@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import StarButton from "@/components/star-button";
 import TokenIcon from "@/components/token-icon";
 import TokenStatus from "@/components/token-status";
-import { formatCompactUsd, formatMint, isThinLiquidity } from "@/app/lib/format";
-import type { OrganicScoreLabel, Token, TokenStats } from "@/app/lib/types";
+import { formatCompactUsd, formatMint, isThinLiquidity, volume24h } from "@/app/lib/format";
+import type { OrganicScoreLabel, Token } from "@/app/lib/types";
 
 export type SearchState =
   | { kind: "loading" }
@@ -33,11 +33,6 @@ const CELL_RULE = "hidden justify-center min-[640px]:flex";
 const CELL_LIQUIDITY = "hidden text-right tabular-nums min-[640px]:block";
 const CELL_ORGANIC = "hidden items-center justify-end gap-1.5 min-[720px]:flex";
 const CELL_STAR = "flex justify-center";
-
-function volume24h(stats: TokenStats): number | null {
-  if (stats.buyVolume === null && stats.sellVolume === null) return null;
-  return (stats.buyVolume ?? 0) + (stats.sellVolume ?? 0);
-}
 
 // Preserve Jupiter's ranking; only pin an unambiguous exact-symbol match.
 export function arrange(results: Token[], query: string): SearchRowItem[] {
