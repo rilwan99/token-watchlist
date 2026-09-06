@@ -201,7 +201,7 @@ export default function Watchlist() {
         <div
           inert={!open}
           className={`overflow-hidden transition-[height] duration-200 ease-out motion-reduce:transition-none ${
-            open ? "h-104" : "h-0"
+            open ? "h-[269px] min-[480px]:h-[297px]" : "h-0"
           }`}
         >
           <div className="flex h-full flex-col pt-1">

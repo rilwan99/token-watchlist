@@ -17,7 +17,7 @@ export type SearchRowItem = { token: Token; exact: boolean };
 const PANEL = "flex min-h-0 flex-1 flex-col rounded-md border border-edge bg-ground";
 const CENTERED = `${PANEL} items-center justify-center gap-3 px-6 text-center`;
 const SCROLLER = "min-h-0 flex-1 divide-y divide-edge";
-const SKELETON_ROWS = 8;
+const SKELETON_ROWS = 5;
 
 const BASE58_MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
@@ -141,8 +141,17 @@ export default function SearchResults({
             onToggle={() => onToggle(row.token)}
           />
         ))}
+        {rows.length < SKELETON_ROWS ? <ResultsEnd count={rows.length} /> : null}
       </ul>
     </div>
+  );
+}
+
+function ResultsEnd({ count }: { count: number }) {
+  return (
+    <li className="flex h-[53px] items-center px-3 text-[11px] text-muted">
+      {count === 1 ? "1 match" : `${count} matches`} · End of results
+    </li>
   );
 }
 
