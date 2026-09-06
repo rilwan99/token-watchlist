@@ -4,13 +4,51 @@ import type { Token, TokenStats } from "@/app/lib/types";
 
 const ENDPOINT = "https://api.jup.ag/tokens/v2/search";
 
-type RawStats = Partial<TokenStats> | null | undefined;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
-function normalizeStats(raw: RawStats): TokenStats {
+function asNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+function toStats(value: unknown): TokenStats {
+  const raw = isRecord(value) ? value : {};
   return {
-    priceChange: raw?.priceChange ?? null,
-    buyVolume: raw?.buyVolume ?? null,
-    sellVolume: raw?.sellVolume ?? null,
+    priceChange: asNumber(raw.priceChange),
+    buyVolume: asNumber(raw.buyVolume),
+    sellVolume: asNumber(raw.sellVolume),
+  };
+}
+
+function toToken(value: unknown): Token | null {
+  if (!isRecord(value)) return null;
+  // Without a mint the row cannot be matched back to the watchlist, so drop it.
+  const id = asString(value.id);
+  if (id === null) return null;
+
+  const symbol = asString(value.symbol);
+  return {
+    id,
+    name: asString(value.name) ?? symbol ?? id,
+    symbol: symbol ?? "",
+    icon: asString(value.icon),
+    isVerified: value.isVerified === true,
+    organicScore: asNumber(value.organicScore),
+    usdPrice: asNumber(value.usdPrice),
+    mcap: asNumber(value.mcap),
+    liquidity: asNumber(value.liquidity),
+    holderCount: asNumber(value.holderCount),
+    stats: {
+      "5m": toStats(value.stats5m),
+      "1h": toStats(value.stats1h),
+      "6h": toStats(value.stats6h),
+      "24h": toStats(value.stats24h),
+    },
   };
 }
 
@@ -39,24 +77,7 @@ export async function searchTokens(query: string): Promise<Token[]> {
     );
   }
 
-  return raw.map(
-    (t): Token => ({
-      id: t.id,
-      name: t.name ?? t.symbol ?? t.id,
-      symbol: t.symbol ?? "",
-      icon: t.icon ?? null,
-      isVerified: t.isVerified === true,
-      organicScore: t.organicScore ?? null,
-      usdPrice: t.usdPrice ?? null,
-      mcap: t.mcap ?? null,
-      liquidity: t.liquidity ?? null,
-      holderCount: t.holderCount ?? null,
-      stats: {
-        "5m": normalizeStats(t.stats5m),
-        "1h": normalizeStats(t.stats1h),
-        "6h": normalizeStats(t.stats6h),
-        "24h": normalizeStats(t.stats24h),
-      },
-    }),
-  );
+  return raw
+    .map(toToken)
+    .filter((token): token is Token => token !== null);
 }

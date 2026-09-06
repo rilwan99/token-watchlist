@@ -24,8 +24,6 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 
 Fields used: `id` (mint), `name`, `symbol`, `icon`, `isVerified`, `organicScore`, `usdPrice`, `mcap`, `liquidity`, `holderCount`, `stats5m|1h|6h|24h` (each with `priceChange`, `buyVolume`, `sellVolume`). Nearly all are nullable — render a dash, never `NaN` or `undefined`.
 
-The API key stays server-side in `JUPITER_API_KEY` (never `NEXT_PUBLIC_`). The client calls only our Route Handler, which forwards to Jupiter.
-
 ## Flows
 
 1. **Load** — rehydrate mints from storage, one batch request, render.
@@ -62,3 +60,7 @@ This is a small app. Keep it small.
 - Follow the patterns already in the file you're editing rather than importing a better one.
 - Multi-file change: list the files and a one-line purpose each, then write the code. Skip preambles and alternative architectures.
 - Ambiguous? Pick the simplest option that fits existing patterns and state the assumption in one sentence. Ask only when the readings lead to materially different work.
+
+## Verification
+
+Any UI change gets verified in a real browser before you call it done — Playwright MCP or the Chrome extension against `next dev`. Exercise the flow you touched, check the console for errors, and say what you saw. "It compiles" is not verification.

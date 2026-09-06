@@ -13,6 +13,8 @@ export async function GET(request: Request) {
     );
   }
 
+  // A single value is a symbol/name search, which is free-form. Only a
+  // comma-separated list is a batch of mints, and those are checked.
   const parts = query.split(",");
   if (parts.length > 1) {
     if (parts.length > MAX_MINTS) {

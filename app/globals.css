@@ -1,26 +1,21 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Dark-only: there are no light-mode variants, so every color is declared once. */
+@theme {
+  --color-ground: #0b0e14;
+  --color-surface: #121722;
+  --color-edge: #1e2635;
+  --color-ink: #e6eaf2;
+  --color-muted: #8a94a6;
+  --color-up: #3fd68c;
+  --color-down: #ff6b6b;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+:root {
+  /* Scrollbars and form controls follow the theme instead of rendering light. */
+  color-scheme: dark;
 }
