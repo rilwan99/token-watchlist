@@ -4,18 +4,31 @@ import { useState } from "react";
 import { formatCompactUsd, formatMint } from "@/app/lib/format";
 import type { OrganicScoreLabel, Token, TokenStats } from "@/app/lib/types";
 
-export const MIN_QUERY = 2;
-
 // A union rather than parallel useStates: results and an error can never render together.
-// `stale` marks results still on screen while a newer query is in flight.
+// `stale` marks results still on screen while a newer query is in flight. `query` is the
+// one that produced these results, not the live input - during the debounce the two differ,
+// and both the no-match message and the exact-match pin must name what was actually searched.
 export type SearchState =
-  | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "ready"; results: Token[]; stale: boolean }
+  | { kind: "ready"; query: string; results: Token[]; stale: boolean }
   | { kind: "error"; message: string };
 
 // In normal flow inside the slot above, not floating: the slot already reserves the space.
-const PANEL = "mt-1 rounded-md border border-edge bg-ground";
+// Every state fills that slot rather than sizing to its content - a one-row message in a
+// 416px slot reads as a gap between the panel and the watchlist, and the gap moving around
+// as states change is the thing the fixed slot exists to prevent.
+const PANEL = "flex min-h-0 flex-1 flex-col rounded-md border border-edge bg-ground";
+
+// Loading, no-match and failure have little to say, so they say it in the middle of the
+// panel rather than pinned to the top above 350px of nothing.
+const CENTERED = `${PANEL} items-center justify-center gap-3 px-6 text-center`;
+
+// The list scrolls inside the panel instead of growing it.
+const SCROLLER = "min-h-0 flex-1 divide-y divide-edge";
+
+// Enough skeleton rows to overrun the panel, so the last one clips exactly as a real
+// scrolling result list does.
+const SKELETON_ROWS = 8;
 
 // Below this, liquidity renders in the danger color and the row drops to the lower group:
 // a token nobody can exit is a worse trap than an unverified one.
@@ -70,51 +83,78 @@ function arrange(results: Token[], query: string) {
   };
 }
 
-// Renders the search states. Idle is a hint rather than nothing, so focusing the input
-// doesn't open an empty void.
+/**
+ * Renders the four panel states. There is no state for an empty field: the panel is closed
+ * below one character, so this only ever renders against a query the user has typed.
+ */
 export default function SearchResults({
   state,
-  query,
+  watchlist,
+  onRetry,
 }: {
   state: SearchState;
-  query: string;
+  watchlist: Set<string>;
+  onRetry: () => void;
 }) {
-  if (state.kind === "idle") {
-    return (
-      <p className={`${PANEL} px-3 py-2 text-sm text-muted`}>
-        Type at least {MIN_QUERY} characters to search by symbol, name, or mint.
-      </p>
-    );
-  }
-
+  // Only reached before the first result of a session lands. Once a query has returned
+  // rows they stay on screen, dimmed, rather than flashing back through this. Skeleton rows
+  // carry the shape of what is coming, so nothing shifts when it arrives; they are scenery,
+  // hidden from assistive tech in favour of the status message.
   if (state.kind === "loading") {
     return (
-      <p role="status" className={`${PANEL} px-3 py-2 text-sm text-muted`}>
-        Searching...
-      </p>
+      <div role="status" className={PANEL}>
+        <span className="sr-only">Searching...</span>
+        <ul aria-hidden="true" className={`${SCROLLER} overflow-hidden`}>
+          <ResultsHeader />
+          {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+            <SkeletonRow key={index} />
+          ))}
+        </ul>
+      </div>
     );
   }
 
+  // Deliberately unlike the no-match copy: nothing was searched, so nothing was ruled out.
   if (state.kind === "error") {
     return (
-      <p role="status" className={`${PANEL} px-3 py-2 text-sm text-down`}>
-        {state.message}
-      </p>
+      <div role="status" className={CENTERED}>
+        <div>
+          <p className="text-sm text-down">Search couldn&apos;t be reached.</p>
+          <p className="mt-1 text-xs text-muted">{state.message}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="rounded-md border border-edge px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-edge"
+        >
+          Retry
+        </button>
+      </div>
     );
   }
 
   if (state.results.length === 0) {
     return (
-      <p role="status" className={`${PANEL} px-3 py-2 text-sm text-muted`}>
-        No tokens matched that search.
-      </p>
+      <div
+        role="status"
+        className={`${CENTERED} transition-opacity ${state.stale ? "opacity-50" : "opacity-100"}`}
+      >
+        <div className="max-w-full">
+          <p className="truncate text-sm text-ink">
+            No tokens match &ldquo;{state.query}&rdquo;
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            Try a symbol, a name, or paste a mint address.
+          </p>
+        </div>
+      </div>
     );
   }
 
-  const { pinned, trusted, untrusted } = arrange(state.results, query);
+  const { pinned, trusted, untrusted } = arrange(state.results, state.query);
   // A base58 query means the user pasted a mint, so every row shows the address in place
   // of the name rather than waiting for a hover.
-  const addressQuery = BASE58_MINT.test(query.trim());
+  const addressQuery = BASE58_MINT.test(state.query);
 
   return (
     <div
@@ -122,16 +162,23 @@ export default function SearchResults({
         state.stale ? "opacity-50" : "opacity-100"
       }`}
     >
-      <ul aria-label="Search results" className="max-h-100 divide-y divide-edge overflow-y-auto">
+      <ul aria-label="Search results" className={`${SCROLLER} overflow-y-auto`}>
         <ResultsHeader />
         {pinned === null ? null : (
-          <SearchRow key={pinned.id} token={pinned} addressQuery={addressQuery} exact />
+          <SearchRow
+            key={pinned.id}
+            token={pinned}
+            addressQuery={addressQuery}
+            onWatchlist={watchlist.has(pinned.id)}
+            exact
+          />
         )}
         {trusted.map((token) => (
           <SearchRow
             key={token.id}
             token={token}
             addressQuery={addressQuery}
+            onWatchlist={watchlist.has(token.id)}
             exact={false}
           />
         ))}
@@ -149,6 +196,7 @@ export default function SearchResults({
             key={token.id}
             token={token}
             addressQuery={addressQuery}
+            onWatchlist={watchlist.has(token.id)}
             exact={false}
           />
         ))}
@@ -181,6 +229,43 @@ function ResultsHeader() {
   );
 }
 
+/**
+ * A result row with the data taken out. It reuses GRID and the same cell classes as the real
+ * row, and pins the 53px row height a real row measures, so results landing swap content
+ * without moving a column or a row edge.
+ */
+function SkeletonRow() {
+  return (
+    <li
+      className={`${GRID} h-[53px] animate-pulse border-l-2 border-transparent px-3 motion-reduce:animate-none`}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="size-7 shrink-0 rounded-full bg-edge" />
+        <div className="min-w-0 flex-1">
+          <span className="block h-3 w-14 rounded bg-edge" />
+          <span className="mt-1.5 block h-2.5 w-24 rounded bg-edge/60" />
+        </div>
+      </div>
+      <span className={CELL_MCAP}>
+        <span className="ml-auto block h-3 w-11 rounded bg-edge" />
+      </span>
+      <span className={CELL_VOLUME}>
+        <span className="ml-auto block h-3 w-11 rounded bg-edge" />
+      </span>
+      <span className={CELL_RULE}>
+        <span className="h-[22px] w-px bg-edge" />
+      </span>
+      <span className={CELL_LIQUIDITY}>
+        <span className="ml-auto block h-3 w-10 rounded bg-edge/60" />
+      </span>
+      <span className={CELL_ORGANIC}>
+        <span className="h-1 w-[26px] shrink-0 rounded-full bg-edge" />
+        <span className="h-3 w-4 rounded bg-edge/60" />
+      </span>
+    </li>
+  );
+}
+
 const ORGANIC_BAR: Record<OrganicScoreLabel, string> = {
   high: "bg-up",
   medium: "bg-ink",
@@ -195,10 +280,12 @@ const ORGANIC_BAR: Record<OrganicScoreLabel, string> = {
 function SearchRow({
   token,
   addressQuery,
+  onWatchlist,
   exact,
 }: {
   token: Token;
   addressQuery: boolean;
+  onWatchlist: boolean;
   exact: boolean;
 }) {
   const [iconBroken, setIconBroken] = useState(false);
@@ -272,6 +359,13 @@ function SearchRow({
             {exact ? (
               <span className="shrink-0 rounded border border-accent/40 px-1 text-[10px] text-accent">
                 Exact
+              </span>
+            ) : null}
+            {/* A short watchlist sits entirely behind the open panel, so the row has to say
+                this itself rather than leaving the user to check the table. */}
+            {onWatchlist ? (
+              <span className="shrink-0 rounded border border-edge bg-edge px-1 text-[10px] text-ink">
+                On list
               </span>
             ) : null}
           </div>
