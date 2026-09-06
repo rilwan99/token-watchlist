@@ -204,7 +204,11 @@ export default function Watchlist() {
             open ? "h-[269px] min-[480px]:h-[297px]" : "h-0"
           }`}
         >
-          <div className="flex h-full flex-col pt-1">
+          <div
+            className={`flex h-full flex-col pt-1 max-[479px]:transition-[opacity,transform] max-[479px]:duration-200 max-[479px]:ease-out motion-reduce:transition-none ${
+              open ? "max-[479px]:translate-y-0 max-[479px]:opacity-100" : "max-[479px]:-translate-y-2 max-[479px]:opacity-0"
+            }`}
+          >
             <SearchResults
               state={search}
               rows={rows}

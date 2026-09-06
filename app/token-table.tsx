@@ -49,20 +49,28 @@ export default function TokenTable({
 
   return (
     <>
-      <ul className="divide-y divide-edge min-[480px]:hidden">
-        {entries.map((entry) => (
-          <TokenCard
-            key={entry.mint}
-            entry={entry}
-            token={metrics.get(entry.mint) ?? null}
-            open={openMint === entry.mint}
-            onToggle={() =>
-              setOpenMint((current) => (current === entry.mint ? null : entry.mint))
-            }
-            onRemove={() => handleRemove(entry.mint)}
-          />
-        ))}
-      </ul>
+      <div className="min-[480px]:hidden">
+        <div className="flex items-center gap-2 border-b border-edge py-3 text-xs uppercase tracking-wide text-muted">
+          <span className="min-w-0 flex-1">Token</span>
+          <span className="shrink-0 text-right">Price</span>
+          <span className="min-w-[62px] shrink-0 text-right">24h</span>
+          <span className="size-4 shrink-0" aria-hidden="true" />
+        </div>
+        <ul className="divide-y divide-edge">
+          {entries.map((entry) => (
+            <TokenCard
+              key={entry.mint}
+              entry={entry}
+              token={metrics.get(entry.mint) ?? null}
+              open={openMint === entry.mint}
+              onToggle={() =>
+                setOpenMint((current) => (current === entry.mint ? null : entry.mint))
+              }
+              onRemove={() => handleRemove(entry.mint)}
+            />
+          ))}
+        </ul>
+      </div>
 
       <div className="hidden w-full overflow-x-auto min-[480px]:block">
         <table className="w-full text-left text-sm">

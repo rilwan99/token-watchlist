@@ -42,7 +42,7 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 6. **Timeframe** — 5m / 1h / 6h / 24h across all change columns. No refetch; all four arrive in one response.
 7. **Refresh** — manual button plus "last updated" timestamp.
 
-Built: load, search, add, remove with undo, refresh, the mobile card layout. Not built yet: sort and the timeframe switch (both layouts are pinned to 24h at `app/token-table.tsx:20`). Update this line as they land.
+Built: load, search with animated mobile results, add, remove with undo, refresh, the mobile card layout with a Token / Price / 24h header. Not built yet: sort and the timeframe switch (both layouts are pinned to 24h at `app/token-table.tsx:20`). Update this line as they land.
 
 ## Settled decisions
 
@@ -66,6 +66,7 @@ Built: load, search, add, remove with undo, refresh, the mobile card layout. Not
 
 - The slot sits in normal flow, opens on the first character typed, collapses when the field is emptied or dismissed. Focus alone opens nothing. Two hard constraints, both failed once: results never cover the watchlist, and the page never moves as results arrive or change count. The slot opening on a keystroke is the one permitted shift.
 - The slot is fixed to five result rows in every open state: 269px below 480px, where the header is hidden, and 297px at larger widths for the header plus five rows. The panel fills it. A content-sized panel jumps a debounce after a keystroke; growing the slot to fit all results pushes the table off the fold.
+- On mobile, the results panel fades and slides down as the reserved slot opens, and reverses on close. The height transition still controls the one permitted page shift; reduced-motion users get neither transition.
 - Four states, all filling the panel: loading (skeleton rows), results, no matches (`No tokens match "<query>"` plus a line suggesting a symbol, a name, or a mint), failed (a message distinct from no-matches plus a Retry that re-runs the query). An empty or failed search never closes the panel.
 - 250ms debounce, 1-character minimum, `AbortController` cancelling superseded requests, no submit button. One character is a real search — Jupiter ranks what it returns, so `s` gives SOL, Sonic, SPYx.
 - A settled answer persists dimmed while a newer query loads, and "no tokens match" is an answer too. A failure is not: its Retry would sit there live, inviting a second request mid-flight. So the skeleton shows only when there is nothing to preserve — the first search of a session, or the one after a failure.
@@ -79,6 +80,7 @@ Built: load, search, add, remove with undo, refresh, the mobile card layout. Not
 
 - `token-table.tsx` holds two render paths over one entry list, swapped at 480px: the table above, cards below. Not one component that widens - the table's Holders column and its hover-revealed `×` have nowhere to go in a 44px card row, and a card that widens into columns turns the desktop rows into tap targets that hide the mint behind an expand.
 - The card is an accordion. The collapsed row carries market state only - icon, symbol, price, 24h - and everything that says what the token *is* moves into the panel: the three remaining metrics, the mint with its copy button, verification, launchpad, and remove. The chevron is on every row, always, because it is the only thing signalling the row is tappable.
+- A mobile-only Token / Price / 24h header sits above non-empty cards, aligned with their collapsed columns; desktop-only metrics remain in the accordion panel.
 - The panel renders or it doesn't; no height animation, and its content is indented 28px to sit under the symbol on `bg-ground`, a step darker than the card's own surface.
 - `formatPriceCompact` caps at nine characters using subscript-zero notation ($0.0₄5545); the table keeps `formatPrice` at full precision. Two formatters on purpose - the card's price column has no width to lend.
 - A 24h change that rounds to 0.00% renders neutral and unsigned on the card (`changeTone`): a stablecoin that hasn't moved is not up. The table keeps its older sign-of-the-raw-value rule.
@@ -89,7 +91,7 @@ Built: load, search, add, remove with undo, refresh, the mobile card layout. Not
 - Name searches send `limit=50` and drop null-liquidity rows in `searchUpstream` — those render blank in every column the app has, so they are empty results, not weak ones. Not an asset-class rule: a filter on the `rwa` tag was rejected because it deletes `NVDAx` and `TSLAx`, which pass on their own numbers.
 - Mint queries (`isMintQuery`) skip both the filter and `limit` — the caller named exact tokens, and `fetchTokens` rehydrates through the same shape, so filtering would strand a watched token in storage. The route caps batches at 100.
 - The exact-symbol pin means "this is what you typed", not "this is safe": accent border and `Exact` tag in accent ink only when the token is also verified, neutral otherwise, suppressed entirely when several unverified tokens share the symbol.
-- A star in the search results' trailing fixed column is both the add control and the membership signal - filled means saved, outline means not, clicking toggles. One target that states the fact and changes it cannot disagree with itself, which a badge plus a separate button can. It replaced an `On list` text badge. A short watchlist sits entirely behind the open panel, so the row has to carry this itself.
+- A star in the search results' trailing fixed column is both the add control and the membership signal - filled means saved, outline means not, clicking toggles. One target that states the fact and changes it cannot disagree with itself, which a badge plus a separate button can. It replaced an `On list` text badge. A short watchlist sits entirely behind the open panel, so the row has to carry this itself. Tap-the-row-to-add on mobile was considered and rejected: the action is a toggle, so a stray tap in a scrolling 269px slot would remove a saved token with no undo in the panel, and row-tap already means "expand" on the watchlist card one screen over.
 - The watchlist row already establishes membership, so its trailing fixed column holds an explicit `×` remove button instead. It fades in on row hover or keyboard focus above 480px, stays visible below it at a 44px target, and turns danger-colored on hover or focus.
 - The star's column is reserved in the resting row, so nothing shifts on hover. A filled star never hides; an empty one fades in on hover or focus above 480px and stays visible below it, where there is no hover and the target is 44px. Opacity, not `display` - it is a tab stop, and tabbing to it is how a keyboard reveals it.
 - Adding uses the token object search already returned. No second fetch, and the row is complete before the next refresh.
@@ -97,6 +99,7 @@ Built: load, search, add, remove with undo, refresh, the mobile card layout. Not
 - Row grid: identity, market cap, 24h volume, a vertical rule, liquidity, organic. Market cap and volume are compared against each other in primary ink; liquidity and organic are checked against a threshold in secondary, and liquidity turns `text-down` below it. Units live in the header row, not per line.
 - Unverified rows read recessive: muted symbol, 40%-opacity icon, launchpad tag. No pill — one fixed-width slot holds `✓` or `?` so nothing after it shifts. It always renders a glyph; this is the row's primary verification signal, and absence is too quiet to carry it.
 - The mint is off the row by default; hover or keyboard focus swaps the name line for the truncated address plus a copy button. Opacity, not `display` — the button is the row's only tab stop. A base58 query (32-44 chars) shows the address on every row without hover.
+- Copying a mint from a search row is desktop-only, by decision. Touch has no hover, so below 480px the row keeps the name and the star is its only tap target. Copying on a phone lives in the watchlist card's accordion panel, where there is room for it. Don't add a mobile reveal to the search row.
 - `formatCompactUsd` is three significant figures, so every cell caps at five characters and the right-aligned edge holds. Missing values are an em dash, never `$0`.
 - The panel stays open after an add and the query is kept, so several tokens can go in one pass; the row's star flips to filled.
 
