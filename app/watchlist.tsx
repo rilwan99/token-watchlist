@@ -16,6 +16,8 @@ export default function Watchlist() {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
+  // Loads the saved watchlist, fetches fresh market data, and updates the load state.
+  // Memoized with useCallback to keep a stable function reference
   const load = useCallback(async () => {
     try {
       const next = await fetchWatchlist(loadMints());
@@ -29,6 +31,7 @@ export default function Watchlist() {
     }
   }, []);
 
+  // Loads the persisted watchlist after mount (avoids a hydration mismatch)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the mint list lives in localStorage, readable only after mount
     void load();
