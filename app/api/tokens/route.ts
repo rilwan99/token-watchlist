@@ -1,4 +1,4 @@
-import { searchTokens } from "@/app/lib/tokens";
+import { searchUpstream } from "@/app/lib/tokens";
 
 const MAX_MINTS = 100;
 const BASE58_MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const tokens = await searchTokens(query);
+    const tokens = await searchUpstream(query);
     return Response.json({ tokens });
   } catch (error) {
     console.error("[/api/tokens]", error);

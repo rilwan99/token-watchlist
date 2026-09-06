@@ -14,6 +14,12 @@ Single-page Solana token watchlist: search, add, view market data, remove. Survi
 
 React 19 + TypeScript on Next.js 16 App Router, Tailwind v4. No state library, no component library, no database.
 
+## Commands
+
+`npm run dev` · `npm run lint` · `npm run typecheck`. There is no test script.
+
+`JUPITER_API_KEY` lives in `.env` (gitignored, untracked). `next dev` must be restarted after changing it.
+
 ## Data source
 
 Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, header `x-api-key`.
@@ -22,17 +28,19 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 - Comma-separated mints return in one response, max 100. This is how the watchlist loads.
 - Symbol/name search returns 20 results by default.
 
-Fields used: `id` (mint), `name`, `symbol`, `icon`, `isVerified`, `organicScore`, `usdPrice`, `mcap`, `liquidity`, `holderCount`, `stats5m|1h|6h|24h` (each with `priceChange`, `buyVolume`, `sellVolume`). Nearly all are nullable — render a dash, never `NaN` or `undefined`.
+The fields used are typed in `app/lib/types.ts` and normalized in `app/lib/tokens.ts`. Nearly every one is nullable upstream — normalize to `null` on the way in, render a dash, never `NaN` or `undefined`.
 
 ## Flows
 
 1. **Load** — rehydrate mints from storage, one batch request, render.
-2. **Search** — by symbol, name, or mint. Results show verified badge, organic score, liquidity, truncated mint, so same-symbol tokens are distinguishable.
+2. **Search** — by symbol, name, or mint. Debounced as-you-type into a floating panel. Results show verified badge, organic score, liquidity, truncated mint, so same-symbol tokens are distinguishable.
 3. **Add** — from the result row; row flips to added state; duplicates blocked.
 4. **Remove** — one click, no confirmation.
 5. **Sort** — client-side on price change, market cap, liquidity, volume, holders.
 6. **Timeframe** — 5m / 1h / 6h / 24h across all change columns. No refetch; all four windows arrive in the same response.
 7. **Refresh** — manual button plus "last updated" timestamp.
+
+This list is the target, not the current state. Built: load, search, refresh. Not built yet: add, remove, sort, the timeframe switch (the table is pinned to 24h at `app/watchlist.tsx:15`), and the mobile card layout. Update this line as they land.
 
 ## Settled decisions
 
@@ -41,6 +49,10 @@ Fields used: `id` (mint), `name`, `symbol`, `icon`, `isVerified`, `organicScore`
 - One anonymous user, one watchlist, one device. No accounts, no sync, no server-side persistence.
 - Snapshot at load, not a live feed. No polling.
 - Spinner while loading. Sort and timeframe are session state, not persisted.
+- Search results occupy a slot in normal flow that opens on input focus and collapses on dismiss, fixed height while open. Two hard constraints, both failed once already: results must never cover the watchlist, and the page must not move as results arrive or change count. The one permitted shift is the slot opening, tied to the user's click.
+- Search fires as-you-type: 250ms debounce, 2-character minimum, `AbortController` cancelling superseded requests. No submit button. Previous results stay on screen dimmed while a newer query is in flight; only the first query shows "Searching...".
+- Jupiter's result ordering is kept as-is — it already weighs organic score, and re-sorting buries exact symbol matches. Impersonators are handled by visual hierarchy instead: unverified rows get a muted symbol, a 40%-opacity icon, and an explicit UNVERIFIED pill.
+- The panel stays open after an add, so several tokens can be added in one pass. The row itself flips to an added state — that per-row feedback is load-bearing, because a short watchlist sits entirely behind the panel.
 - Soft cap ~50 tokens, under the 100-mint batch limit.
 - Solana only.
 - Desktop table, mobile cards. Same data and flows; both primary.
@@ -52,6 +64,8 @@ Out of scope: trading, wallet connection, charts, alerts, multiple watchlists, e
 This is a small app. Keep it small.
 
 - Build exactly what was asked. No extra flags, config, routes, or "while I was in there" features.
+- A user-facing change starts with the interaction, not the code. Before writing any, settle: where it renders and what moves when it appears; what triggers it; every state (empty, loading, error, too many results); the mistake it has to stop the user making; what happens right after the primary action. Recommend an option for each and get agreement in the same message.
+- A one-line request ("add a search bar") names a mechanism, not a behavior. Unspecified is not unambiguous — for anything a user touches, absent behavior is a question to ask, not a gap to fill with the nearest default. Shipping the literal reading of the sentence is how the search panel got built inline and shoved the watchlist 344px down the page.
 - Server Components by default; `"use client"` only where interactivity actually needs it.
 - No `useMemo` / `useCallback` without a stated reason.
 - No new abstraction until the same code exists in three places. No `utils/`, `hooks/`, or generic wrappers for one caller.
@@ -59,8 +73,19 @@ This is a small app. Keep it small.
 - Comments for non-obvious logic and short function-level summaries — nullable API fields, Jupiter quirks, an invariant that isn't visible from the code. Don't annotate individual lines with what they already say.
 - No new dependencies without saying why one is needed.
 - Follow the patterns already in the file you're editing rather than importing a better one.
-- Multi-file change: list the files and a one-line purpose each, then write the code. Skip preambles and alternative architectures.
-- Ambiguous? Pick the simplest option that fits existing patterns and state the assumption in one sentence. Ask only when the readings lead to materially different work.
+- Name functions by the layer they sit in, not the vendor they call: `searchUpstream` (server, hits Jupiter) vs `searchTokens` (browser, hits `/api/tokens`). The provider name belongs in comments, not exported names.
+- Multi-file change: once the behavior is settled, list the files and a one-line purpose each, then write the code. Skip preambles and alternative architectures — that applies to the implementation, never to the product decisions above it.
+- Ambiguous implementation detail? Pick the simplest option that fits existing patterns and state the assumption in one sentence. Ask only when the readings lead to materially different work. This governs code choices, not user-facing behavior.
+
+## Keeping this file current
+
+Treat this file like code. It only earns its length by changing behavior, so edit it when a session proves it wrong, stale, or incomplete.
+
+- When something durable gets settled — a decision, a constraint, an API quirk, a correction to how I work here — add it as one line in the section it belongs to, before the session ends. Say what changed; don't ask first.
+- Rewrite or delete the line that was wrong rather than stacking a new one beside it.
+- The test for every line: would removing it cause a mistake? If not, cut it. This file loads in full every session, so length costs attention and a bloated file gets skimmed.
+- Only what a session can't infer from the code. Not a changelog, not what we tried and dropped, not the obvious.
+- `README.md` is the human-facing companion: the same decisions written as reasoning for a reviewer. Decisions stay here as one-line constraints; the prose explaining them goes there. Both carry the build-status line — update both.
 
 ## Verification
 

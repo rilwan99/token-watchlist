@@ -52,7 +52,8 @@ function toToken(value: unknown): Token | null {
   };
 }
 
-export async function searchTokens(query: string): Promise<Token[]> {
+/** Calls Jupiter directly. Server-only; the browser goes through `/api/tokens` instead. */
+export async function searchUpstream(query: string): Promise<Token[]> {
   const apiKey = process.env.JUPITER_API_KEY;
   if (!apiKey) {
     throw new Error(
