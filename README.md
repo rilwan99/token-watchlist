@@ -27,9 +27,9 @@ There is no test script.
 
 ## Status
 
-Built: load from storage, search with animated mobile results, add, remove with undo, manual refresh, the unified dark watchlist card, desktop table, and mobile accordion with animated details.
+Built: load from storage, search with animated mobile results, add, remove with undo, manual refresh, the unified dark watchlist card, desktop table, mobile accordion with animated details, and sort.
 
-Not built yet: sort.
+Every flow the app set out to cover is in.
 
 The 5m/1h/6h/24h switch is cut rather than pending. Every change column is 24h, and the type mirrors that: `Token` carries a single `stats24h`, not a map keyed by timeframe. Keeping the four-window shape around a control that isn't coming would be scaffolding for a feature, and the cost of adding it back is one line in `toToken`.
 
@@ -111,6 +111,10 @@ The chevron is on every mobile row, always, even though it's redundant on a row 
 
 **Price stays compact, and 24h change stops lying about zero.** `formatPriceCompact` writes `$0.00005545` as `$0.0₄5545` — subscript-zero notation, the subscript counting the zeros — and caps every output at nine characters, including in the desktop table's fixed price column. A 24h change that rounds to `0.00%` renders faint and drops its sign in both layouts. A stablecoin sitting at +0.001% is not up, and painting it green says it is.
 
+**Sorting is a view, and the saved order is always one click away.** The stored list never reorders — `sortEntries` returns it untouched when nothing is sorted — so a sort can't quietly become the thing storage remembers. On the desktop table the header is the control: each numeric label is a button that cycles descending, ascending, then back to the saved order. Descending first because these are all money columns and the question is which token is biggest; a third state rather than a two-way toggle because otherwise a sorted list has no way home short of a reload. The caret sits in the header cell's own right padding instead of beside the label, since every numeric column is measured to the wider of its header and its widest value and an inline glyph would take that width from the token column, which is already truncating symbols at 640px. An idle header row reads as inert labels, so an unsorted column fades a faint down caret in on hover or keyboard focus — enough to say the column is sortable and which way the first click goes, without a permanent row of glyphs competing with the numbers. Rows with no live data — a token Jupiter stopped returning — sort last in both directions rather than winning "cheapest" on a null.
+
+The accordion has no header row to click, so mobile gets its own band above the cards: a native `<select>` of the five keys plus "Saved order", and a direction toggle that disables while unsorted. Native because the OS picker is a better target on a phone than a custom menu, and it costs no dismissal, focus-trapping or outside-click handling. Both layouts read the same state, so rotating the device keeps the sort. Refreshing keeps it too and re-sorts the new numbers, which means a row can jump while you watch — the alternative, dropping the sort on every refresh, loses it at exactly the moment it's most wanted.
+
 **The API key never reaches the browser.** The route handler at `GET /api/tokens` is the only thing that talks to Jupiter (`server-only` is imported in `app/lib/tokens.ts` to enforce that at build time). It also validates mint batches — base58 shape, 100 maximum — so a malformed request fails locally instead of burning an upstream call.
 
 **Every number from upstream is nullable.** Jupiter omits price, market cap, liquidity and holder count for thin or new tokens, and reports `isVerified` as `null` rather than `false`. Those are normalized on the way in and rendered as an em dash — never `$0`, which on a search row would read as a real zero-liquidity signal. `NaN` and `undefined` never reach the DOM. There's no total volume field either: 24h volume is buy plus sell, and since a token can legitimately have buys and no sells, only a missing pair reads as unknown.
@@ -168,10 +172,11 @@ app/
 ├── lib/api.ts           # Browser-side client for /api/tokens
 ├── lib/storage.ts       # localStorage: saved identities and the seeded flag
 ├── lib/format.ts        # Price, percent, compact USD, count, mint truncation and validation, liquidity threshold, 24h volume
+├── lib/sort.ts          # Sort keys, the mobile menu's labels, and the comparator over the saved order
 ├── watchlist.tsx        # Client component: the entry list, metrics, undo, page layout
 ├── use-token-search.ts  # The search state machine: query, debounce, abort, dismissal, keyboard highlight
 ├── search-results.tsx   # The results panel: header, rows, empty and error states
-├── token-table.tsx      # Picks the layout for one entry list and owns the open card
+├── token-table.tsx      # Picks the layout for one entry list, owns the open card and the sort
 ├── token-card.tsx       # Mobile: the accordion row and its drawer
 ├── token-row.tsx        # Desktop: one table row
 ├── page.tsx             # Server component shell

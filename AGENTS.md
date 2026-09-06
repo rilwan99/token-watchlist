@@ -38,10 +38,10 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 2. **Search** — by symbol, name, or mint, debounced into the results slot.
 3. **Add** — from a result row; row flips to added, duplicates blocked.
 4. **Remove** — one click, no confirmation; an eight-second undo restores the last row at its original position.
-5. **Sort** — client-side on price change, market cap, liquidity, volume, holders.
+5. **Sort** — client-side on price, 24h change, market cap, liquidity, holders.
 6. **Refresh** — manual button plus "last updated" timestamp.
 
-Built: load from storage, search with animated mobile results, add, remove with undo, manual refresh, the unified dark watchlist card, desktop table, and mobile accordion with animated details. Not built yet: sort. Update this line as it lands. The timeframe switch is cut, not pending — every change column is 24h.
+Built: load from storage, search with animated mobile results, add, remove with undo, manual refresh, the unified dark watchlist card, desktop table, mobile accordion with animated details, and sort. Every flow above is in. Update this line as anything lands. The timeframe switch is cut, not pending — every change column is 24h.
 
 ## Settled decisions
 
@@ -58,7 +58,9 @@ Built: load from storage, search with animated mobile results, add, remove with 
 - Snapshot at load, not a live feed. No polling; refresh is manual. A failed refresh reports itself beside the timestamp and leaves the table standing. A temporary remove undo supersedes the error in that slot; the error returns when undo expires.
 - Removing offers an eight-second undo for the last row only. It reinserts the saved entry at its original index through the normal storage commit; a later add, remove, or undo clears it.
 - One anonymous user, one watchlist, one device. Solana only. Soft cap ~50 tokens, under the 100-mint batch limit.
-- Sort is session state, not persisted.
+- Sort is session state, not persisted. It lives in `token-table.tsx` beside the accordion's `openMint`, not in `watchlist.tsx`: it is a view over the entry list, and nothing outside the two layouts reads it. `sortEntries` returns the saved order untouched when the sort is null, so storage order stays the one source of order.
+- Five sortable keys, all numeric and all live: price, 24h change, market cap, liquidity, holders. Volume is not among them — it has no desktop column, and adding a seventh would re-measure every fixed width. Nulls sort last in both directions, so a token Jupiter no longer returns cannot win "cheapest"; ties keep the saved order through a stable sort.
+- A refresh re-sorts the new numbers under the active sort, so a row can visibly jump; a reload starts from the saved order. Adds land in their sorted position, and a remove-undo reinserts at the storage index while the view re-sorts around it.
 - 24h is the only timeframe, by decision. Jupiter returns 5m/1h/6h in the same response; `toToken` normalizes only `stats24h`, and `Token.stats24h` is a single `TokenStats`, not a keyed map. There is no switch and no `Timeframe` type — don't reintroduce either as scaffolding.
 - Desktop table and mobile cards are separate render paths over the same data and flows, enclosed by one bounded surface card with a desktop header band and a manual-refresh footer. The accordion stays below 640px; empty lists keep the card and footer but omit the header band.
 - The page column caps at 1120px, centred, so the search row and the card share one width and one left edge. The table never scrolls horizontally — the accordion covers every width the six columns cannot fit.
@@ -91,6 +93,8 @@ Built: load from storage, search with animated mobile results, add, remove with 
 - The mobile panel expands and collapses over 200ms with the same ease-out rhythm as search, and its content fades and slides with it. It stays rendered but inert and hidden from assistive technology while collapsed.
 - `formatPriceCompact` caps at nine characters using subscript-zero notation ($0.0₄5545) in both price columns, keeping the desktop's fixed 98px price column stable.
 - A 24h change that rounds to 0.00% renders neutral and unsigned in both layouts through `changeTone` and `formatChange`: a stablecoin that hasn't moved is not up.
+- The desktop sort control is the header itself: each numeric label is a full-cell button cycling desc → asc → saved order, with `aria-sort` on the `th`. Its caret is absolutely positioned in the cell's own right padding, never inline — every numeric column is measured to the wider of its header and its widest value, so an inline glyph would take ~12px from the token column, which already truncates the symbol at 640px. The label's right edge stays aligned with the numbers below it and nothing moves when the sort changes. An idle header looks inert, so an inactive column fades a faint down caret in on hover or keyboard focus - the direction that first click applies; the active column's caret is `text-ink` and always visible, and hover never previews the next direction. Active reads `text-ink`, not accent: accent stays selection and verification.
+- The accordion has no header row, so mobile sorts from its own band above the cards — a native `<select>` of the five keys plus "Saved order", and a direction toggle disabled while unsorted. Native because the OS picker is the better phone target and it costs no dismissal, focus or outside-click handling. Both layouts read one sort state, so a rotation keeps it.
 
 ### Result rows
 
@@ -123,7 +127,7 @@ This is a small app. Keep it small.
 - No `useMemo` / `useCallback` without a stated reason.
 - No new abstraction until the same code exists in three places. A focused leaf component that removes duplicated row UI is the exception; no `utils/`, `hooks/`, or generic wrappers for one caller.
 - Page-specific components stay flat in `app/`: `watchlist.tsx` owns membership state and layout, while `search-results.tsx` and `token-table.tsx` render it, the latter delegating to `token-card.tsx` and `token-row.tsx`. Shared row controls live in `components/`: `star-button.tsx`, `token-icon.tsx`, and `token-status.tsx`. Splitting a file past ~300 lines along a seam that already exists is fine.
-- `use-token-search.ts` owns the whole search half - query, debounce, `AbortController`, dismissal, retry, and the arrow/Enter highlight - and takes `onToggle` as its one tie back to membership. It is a deliberate exception to the no-one-caller-wrapper rule: `watchlist.tsx` was running two unrelated state machines in 265 lines, and sort still has to land. Don't fold it back in, and don't start a `hooks/` directory - it sits flat in `app/` like everything else.
+- `use-token-search.ts` owns the whole search half - query, debounce, `AbortController`, dismissal, retry, and the arrow/Enter highlight - and takes `onToggle` as its one tie back to membership. It is a deliberate exception to the no-one-caller-wrapper rule: `watchlist.tsx` was running two unrelated state machines in 265 lines. Don't fold it back in, and don't start a `hooks/` directory - it sits flat in `app/` like everything else.
 - One source of truth for membership: the ordered entry list in `watchlist.tsx`. Live metrics are a separate mint-keyed map that holds no membership. Never a second list, and never an effect syncing two.
 - No tests unless asked. No mocks, fixtures, or scaffolding.
 - Comments for non-obvious logic and short function-level summaries — nullable API fields, Jupiter quirks, an invariant that isn't visible from the code. Don't annotate lines with what they already say.
