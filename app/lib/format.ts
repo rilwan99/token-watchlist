@@ -6,7 +6,7 @@ function isNumber(value: number | null): value is number {
   return value !== null && Number.isFinite(value);
 }
 
-/** Full precision price. Sub-cent tokens need more decimals than $102.56 does. */
+/** Full precision price for the desktop table. Sub-cent tokens need more decimals than $102.56. */
 export function formatPrice(value: number | null): string {
   if (!isNumber(value)) return DASH;
   const maximumFractionDigits = value < 0.01 ? 8 : value < 1 ? 6 : 2;

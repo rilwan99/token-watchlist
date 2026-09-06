@@ -42,7 +42,7 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 6. **Timeframe** — 5m / 1h / 6h / 24h across all change columns. No refetch; all four arrive in one response.
 7. **Refresh** — manual button plus "last updated" timestamp.
 
-Built: load, search with animated mobile results, add, remove with undo, refresh, the mobile card layout with animated details and a Token / Price / 24h header. Not built yet: sort and the timeframe switch (both layouts are pinned to 24h at `app/token-table.tsx:20`). Update this line as they land.
+Built: load, search with animated mobile results, add, remove with undo, refresh, the desktop table, and the redesigned mobile accordion with animated details. Not built yet: sort and the timeframe switch (both layouts are pinned to 24h at `app/token-table.tsx:20`). Update this line as they land.
 
 ## Settled decisions
 
@@ -59,7 +59,7 @@ Built: load, search with animated mobile results, add, remove with undo, refresh
 - Removing offers an eight-second undo for the last row only. It reinserts the saved entry at its original index through the normal storage commit; a later add, remove, or undo clears it.
 - One anonymous user, one watchlist, one device. Solana only. Soft cap ~50 tokens, under the 100-mint batch limit.
 - Sort and timeframe are session state, not persisted.
-- Desktop table, mobile cards. Same data and flows; both primary.
+- Desktop table and mobile cards are separate render paths over the same data and flows. The redesigned accordion stays below 480px; desktop keeps its original table.
 - Accordion state is session state too, and only one card is open at a time.
 
 ### The search slot
@@ -78,11 +78,11 @@ Built: load, search with animated mobile results, add, remove with undo, refresh
 
 ### The watchlist row
 
-- `token-table.tsx` holds two render paths over one entry list, swapped at 480px: the table above, cards below. Not one component that widens - the table's Holders column and its hover-revealed `×` have nowhere to go in a 44px card row, and a card that widens into columns turns the desktop rows into tap targets that hide the mint behind an expand.
-- The card is an accordion. The collapsed row carries market state only - icon, symbol, price, 24h - and everything that says what the token *is* moves into the panel: the three remaining metrics, the mint with its copy button, verification, launchpad, and remove. The chevron is on every row, always, because it is the only thing signalling the row is tappable.
-- A mobile-only Token / Price / 24h header sits above non-empty cards, aligned with their collapsed columns; desktop-only metrics remain in the accordion panel.
-- The panel expands and collapses over 200ms with the same ease-out rhythm as search, and its content fades and slides with it. It stays rendered but inert and hidden from assistive technology while collapsed; its content is indented 28px to sit under the symbol on `bg-ground`, a step darker than the card's own surface.
-- `formatPriceCompact` caps at nine characters using subscript-zero notation ($0.0₄5545); the table keeps `formatPrice` at full precision. Two formatters on purpose - the card's price column has no width to lend.
+- `token-table.tsx` has two render paths over one entry list: redesigned accordion cards below 480px and the original desktop table above it. Only one is in the flow at once.
+- The mobile collapsed row carries an icon, symbol, verified check when applicable, truncated name, stacked price/24h change, and an up/down chevron; the whole row toggles its drawer. The desktop table remains non-accordion.
+- The mobile drawer is visually joined under its row with a left accent rule. Its order is market-cap/liquidity/volume stat grid, wrapping trust/context chips (verification, holders and launchpad where available), then mint/copy/remove utilities. The remove icon is bordered red only and every missing metric reads `—`.
+- The mobile panel expands and collapses over 200ms with the same ease-out rhythm as search, and its content fades and slides with it. It stays rendered but inert and hidden from assistive technology while collapsed.
+- `formatPriceCompact` caps at nine characters using subscript-zero notation ($0.0₄5545) in the mobile price column; the desktop table keeps `formatPrice` at full precision.
 - A 24h change that rounds to 0.00% renders neutral and unsigned on the card (`changeTone`): a stablecoin that hasn't moved is not up. The table keeps its older sign-of-the-raw-value rule.
 
 ### Result rows
@@ -92,7 +92,7 @@ Built: load, search with animated mobile results, add, remove with undo, refresh
 - Mint queries (`isMintQuery`) skip both the filter and `limit` — the caller named exact tokens, and `fetchTokens` rehydrates through the same shape, so filtering would strand a watched token in storage. The route caps batches at 100.
 - The exact-symbol pin means "this is what you typed", not "this is safe": accent border and `Exact` tag in accent ink only when the token is also verified, neutral otherwise, suppressed entirely when several unverified tokens share the symbol.
 - A star in the search results' trailing fixed column is both the add control and the membership signal - filled means saved, outline means not, clicking toggles. One target that states the fact and changes it cannot disagree with itself, which a badge plus a separate button can. It replaced an `On list` text badge. A short watchlist sits entirely behind the open panel, so the row has to carry this itself. Tap-the-row-to-add on mobile was considered and rejected: the action is a toggle, so a stray tap in a scrolling 269px slot would remove a saved token with no undo in the panel, and row-tap already means "expand" on the watchlist card one screen over.
-- The watchlist row already establishes membership, so its trailing fixed column holds an explicit `×` remove button instead. It fades in on row hover or keyboard focus above 480px, stays visible below it at a 44px target, and turns danger-colored on hover or focus.
+- The desktop table's trailing fixed column holds an explicit `×` remove button, revealed on row hover or keyboard focus. The mobile drawer instead has an always-visible 36px bordered remove icon beside copy.
 - The star's column is reserved in the resting row, so nothing shifts on hover. A filled star never hides; an empty one fades in on hover or focus above 480px and stays visible below it, where there is no hover and the target is 44px. Opacity, not `display` - it is a tab stop, and tabbing to it is how a keyboard reveals it.
 - Adding uses the token object search already returned. No second fetch, and the row is complete before the next refresh.
 - Unverified and thin tokens are addable. The row says what a token is; it does not decide. The `?` glyph, the launchpad tag and the danger-colored liquidity all follow the token into the watchlist row, where they are read from then on - except when there are no live metrics, since unknown verification is not the same claim as unverified.

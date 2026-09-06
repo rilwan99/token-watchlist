@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import TokenIcon from "@/components/token-icon";
 import TokenStatus from "@/components/token-status";
 import {
@@ -25,11 +25,7 @@ const TONE: Record<"up" | "down" | "flat", string> = {
   flat: "text-muted",
 };
 
-/**
- * Two layouts over one entry list: cards below 480px, the table at and above it. Only one is
- * in the DOM's flow at a time, so the hidden one is out of the tab order and off screen
- * readers too.
- */
+/** Separate layouts share one entry list: the accordion is mobile-only, the table is desktop-only. */
 export default function TokenTable({
   entries,
   metrics,
@@ -39,7 +35,7 @@ export default function TokenTable({
   metrics: Map<string, Token>;
   onRemove: (mint: string) => void;
 }) {
-  // Accordion, one row at a time. Session state - a reload lands with every card collapsed.
+  // Session-only accordion state. Opening one row always closes the one before it.
   const [openMint, setOpenMint] = useState<string | null>(null);
 
   function handleRemove(mint: string) {
@@ -50,13 +46,7 @@ export default function TokenTable({
   return (
     <>
       <div className="min-[480px]:hidden">
-        <div className="flex items-center gap-2 border-b border-edge py-3 text-xs uppercase tracking-wide text-muted">
-          <span className="min-w-0 flex-1">Token</span>
-          <span className="shrink-0 text-right">Price</span>
-          <span className="min-w-[62px] shrink-0 text-right">24h</span>
-          <span className="size-4 shrink-0" aria-hidden="true" />
-        </div>
-        <ul className="divide-y divide-edge">
+        <ul className="overflow-hidden rounded-md border border-edge">
           {entries.map((entry) => (
             <TokenCard
               key={entry.mint}
@@ -103,11 +93,6 @@ export default function TokenTable({
   );
 }
 
-/**
- * Collapsed card: the market state only - price and 24h change. Name, mint, verification,
- * launchpad and the remove control all live in the panel, so the row holds its 44px height
- * and the price column keeps its width at 375px.
- */
 function TokenCard({
   entry,
   token,
@@ -122,46 +107,70 @@ function TokenCard({
   onRemove: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const cardRef = useRef<HTMLLIElement>(null);
 
-  const symbol = token?.symbol || entry.symbol;
+  const symbol = token?.symbol || entry.symbol || "—";
+  const name = token?.name || entry.name || "—";
   const icon = token?.icon ?? entry.icon;
   const change = token?.stats[TIMEFRAME].priceChange ?? null;
   const thin = isThinLiquidity(token?.liquidity ?? null);
   const panelId = `token-panel-${entry.mint}`;
 
+  // Wait for the drawer's height transition before asking the browser to reveal its bottom.
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      const card = cardRef.current;
+      if (card !== null && card.getBoundingClientRect().bottom > window.innerHeight) {
+        card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [open]);
+
   function handleCopy() {
     navigator.clipboard.writeText(entry.mint).then(
       () => {
         setCopied(true);
-        setTimeout(() => setCopied(false), 2_000);
+        window.setTimeout(() => setCopied(false), 2_000);
       },
       () => undefined,
     );
   }
 
   return (
-    <li>
+    <li ref={cardRef} className="border-b border-edge last:border-b-0">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={panelId}
-        className="flex min-h-11 w-full items-center gap-2 py-2 text-left transition-colors active:bg-edge/40"
+        className="flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-surface/70 active:bg-edge/40"
       >
         <TokenIcon
           src={icon}
           symbol={symbol}
-          className="size-5"
+          className="size-8"
           dimmed={token !== null && !token.isVerified}
         />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{symbol}</span>
-        <span className="shrink-0 text-right font-mono text-[13px] tabular-nums text-ink">
-          {formatPriceCompact(token?.usdPrice ?? null)}
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1">
+            <span className={`truncate text-sm font-medium ${token !== null && !token.isVerified ? "text-muted" : "text-ink"}`}>
+              {symbol}
+            </span>
+            {token?.isVerified ? (
+              <span className="shrink-0 text-xs text-up" aria-label="Verified">✓</span>
+            ) : null}
+          </span>
+          <span className="mt-0.5 block truncate text-xs text-muted">{name}</span>
         </span>
-        <span
-          className={`min-w-[62px] shrink-0 text-right text-[13px] tabular-nums ${TONE[changeTone(change)]}`}
-        >
-          {formatChange(change)}
+        <span className="shrink-0 text-right">
+          <span className="block font-mono text-[13px] tabular-nums text-ink">
+            {formatPriceCompact(token?.usdPrice ?? null)}
+          </span>
+          <span className={`mt-0.5 block text-[12px] tabular-nums ${TONE[changeTone(change)]}`}>
+            {formatChange(change)}
+          </span>
         </span>
         <svg
           viewBox="0 0 24 24"
@@ -171,11 +180,11 @@ function TokenCard({
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={`size-4 shrink-0 text-muted transition-transform duration-150 motion-reduce:transition-none ${
-            open ? "rotate-90" : ""
+          className={`size-4 shrink-0 text-muted transition-transform duration-200 motion-reduce:transition-none ${
+            open ? "rotate-180" : ""
           }`}
         >
-          <path d="M9 5l7 7-7 7" />
+          <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
 
@@ -189,50 +198,66 @@ function TokenCard({
       >
         <div className="min-h-0">
           <div
-            className={`bg-ground pb-3 pl-7 pr-1 pt-2.5 text-[13px] transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ${
+            className={`border-l-2 border-accent bg-ground px-3 py-3 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none sm:px-4 ${
               open ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
             }`}
           >
-            <dl>
-              <Metric label="Market cap" value={formatCompactUsd(token?.mcap ?? null)} />
-              <Metric
+            <dl className="grid grid-cols-3 divide-x divide-edge rounded-r-md border border-edge bg-surface">
+              <DrawerStat label="Market cap" value={formatCompactUsd(token?.mcap ?? null)} />
+              <DrawerStat
                 label="Liquidity"
                 value={formatCompactUsd(token?.liquidity ?? null)}
                 tone={thin ? "text-down" : "text-ink"}
               />
-              <Metric
+              <DrawerStat
                 label="24h volume"
                 value={formatCompactUsd(token === null ? null : volume24h(token.stats[TIMEFRAME]))}
               />
             </dl>
 
-            <div className="mt-2.5 border-t border-edge">
-              <button
-                type="button"
-                onClick={handleCopy}
-                aria-label={`Copy the ${symbol} mint address`}
-                className="inline-flex min-h-11 items-center gap-2 rounded text-muted transition-colors hover:text-ink focus-visible:text-ink focus-visible:outline-none"
-              >
-                <span className="font-mono">{formatMint(entry.mint)}</span>
-                <span className="text-xs">{copied ? "Copied" : "⧉"}</span>
-              </button>
-              {/* Absent metrics mean Jupiter no longer returns the mint, and unknown
-                  verification is not the same claim as unverified. */}
-              {token === null ? null : (
-                <p className="text-xs text-muted">
-                  {token.isVerified ? "Verified" : "Unverified"}
-                  {token.launchpad === null ? "" : ` · ${token.launchpad}`}
-                </p>
+            <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Trust and token context">
+              <SignalChip tone={token?.isVerified ? "positive" : "info"}>
+                {token === null ? "Verification —" : token.isVerified ? "Verified" : "Unverified"}
+              </SignalChip>
+              <SignalChip tone="info">Holders {formatCount(token?.holderCount ?? null)}</SignalChip>
+              {token === null || token.launchpad === null ? null : (
+                <SignalChip tone="info">{token.launchpad}</SignalChip>
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={onRemove}
-              className="mt-1 inline-flex min-h-11 items-center rounded font-medium text-down transition-opacity active:opacity-60 focus-visible:outline-none focus-visible:underline"
-            >
-              Remove from watchlist
-            </button>
+            <div className="mt-3 flex items-center justify-between gap-3 border-t border-edge pt-3">
+              <span className="min-w-0 truncate font-mono text-xs text-muted">{formatMint(entry.mint)}</span>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  aria-label={`Copy the ${symbol} mint address`}
+                  className="flex size-9 items-center justify-center rounded-md border border-edge text-muted transition-colors hover:border-muted hover:text-ink focus-visible:border-accent focus-visible:text-ink focus-visible:outline-none"
+                >
+                  {copied ? (
+                    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-up">
+                      <path d="m5 12 4 4L19 6" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+                      <rect x="9" y="9" width="10" height="10" rx="1" />
+                      <path d="M5 15V5h10" />
+                    </svg>
+                  )}
+                  <span className="sr-only" aria-live="polite">{copied ? "Address copied" : ""}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onRemove}
+                  aria-label={`Remove ${symbol} from watchlist`}
+                  className="flex size-9 items-center justify-center rounded-md border border-down/70 text-down transition-colors hover:border-down focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-down"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4">
+                    <path d="M6 6l12 12M18 6 6 18" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -240,23 +265,7 @@ function TokenCard({
   );
 }
 
-function Metric({
-  label,
-  value,
-  tone = "text-ink",
-}: {
-  label: string;
-  value: string;
-  tone?: string;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 py-1">
-      <dt className="text-muted">{label}</dt>
-      <dd className={`tabular-nums ${tone}`}>{value}</dd>
-    </div>
-  );
-}
-
+/** The original desktop-only table row; its market columns remain visible at wider widths. */
 function TokenRow({
   entry,
   token,
@@ -269,7 +278,6 @@ function TokenRow({
   const symbol = token?.symbol || entry.symbol;
   const name = token?.name || entry.name;
   const icon = token?.icon ?? entry.icon;
-
   const change = token?.stats[TIMEFRAME].priceChange ?? null;
   const changeColor = change === null ? "text-muted" : change < 0 ? "text-down" : "text-up";
   const thin = isThinLiquidity(token?.liquidity ?? null);
@@ -319,5 +327,40 @@ function TokenRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+function DrawerStat({
+  label,
+  value,
+  tone = "text-ink",
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+}) {
+  return (
+    <div className="min-w-0 px-2.5 py-2.5 first:pl-3 last:pr-3 sm:px-4">
+      <dt className="truncate text-[10px] uppercase tracking-wide text-muted">{label}</dt>
+      <dd className={`mt-1 truncate font-mono text-sm tabular-nums ${tone}`}>{value}</dd>
+    </div>
+  );
+}
+
+function SignalChip({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: "positive" | "info";
+}) {
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[11px] leading-4 ${
+      tone === "positive"
+        ? "border-up/40 bg-up/10 text-up"
+        : "border-accent/40 bg-accent/10 text-accent"
+    }`}>
+      {children}
+    </span>
   );
 }
