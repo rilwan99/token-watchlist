@@ -27,7 +27,7 @@ There is no test script.
 
 ## Status
 
-Built: load from storage, search, add, remove, manual refresh, the desktop table.
+Built: load from storage, search, add, remove with undo, manual refresh, the desktop table.
 
 Not built yet: sort, the 5m/1h/6h/24h switch (the table is pinned to 24h), and the mobile card layout.
 
@@ -75,11 +75,11 @@ Filtering Jupiter's `rwa` tag instead was tempting and wrong for the same reason
 
 **The mint address is on the row, but not in the way.** It's the only field that identifies a token beyond doubt and the least scannable thing you could put in a list, so it replaces the name line on hover or keyboard focus, in mono, with a copy button. The two layers swap by opacity rather than `display`, because a `display: none` button can't be tabbed to — reaching that button is what reveals the address, and it's the row's only tab stop. Paste a mint into the search box and every row shows its address without a hover.
 
-**One star is the control and the indicator.** Every row — search result and watchlist alike — ends in a star: filled means saved, outline means not, clicking toggles. A badge that reports membership plus a button that changes it are two things that can disagree; one target that does both cannot. It replaced an `On list` text badge that said the same thing in more space and did nothing.
+**The search star is the control and the indicator.** A search result ends in a star: filled means saved, outline means not, clicking toggles. A badge that reports membership plus a button that changes it are two things that can disagree; one target that does both cannot. It replaced an `On list` text badge that said the same thing in more space and did nothing. A watchlist row already proves membership by existing, so its matching fixed column carries an explicit `×` remove button instead.
 
-Its column is reserved in the resting row, so nothing shifts when you hover. A filled star never hides, because on a short watchlist sitting behind the open panel it's the only thing saying "you already have this". An empty one is an invitation, and eight of them down a panel is noise, so above 480px it fades in on hover or keyboard focus — by opacity, never `display`, because it's a tab stop and tabbing to it is how a keyboard user finds it. Below 480px there's no hover to wait for, so it stays visible at a 44px target.
+Its column is reserved in the resting row, so nothing shifts when you hover. A filled star never hides, because on a short watchlist sitting behind the open panel it's the only thing saying "you already have this". An empty one is an invitation, and eight of them down a panel is noise, so above 480px it fades in on hover or keyboard focus — by opacity, never `display`, because it's a tab stop and tabbing to it is how a keyboard user finds it. Below 480px there's no hover to wait for, so it stays visible at a 44px target. The remove button follows the same visibility rule, but turns danger-colored on hover or focus so the action is clear before it fires.
 
-Adding uses the token object the search already returned, so the new row arrives complete without a second request, and the panel stays open with the query intact — one search is usually worth more than one token. Removal is one click with no confirmation: re-adding is a search away, and the search row will already show it as saved.
+Adding uses the token object the search already returned, so the new row arrives complete without a second request, and the panel stays open with the query intact — one search is usually worth more than one token. Removal is one click with no confirmation: an eight-second inline undo replaces the last removal only, restoring that entry at its original position without refetching. The offer expires on a later add or remove, and a refresh does not disturb it.
 
 **Arrow keys move a highlight; Enter toggles it.** Up and down walk the results and wrap at both ends, Enter stars the highlighted row and leaves the panel open, Escape empties the field, which closes the panel and returns focus to the input. The highlight starts on nothing, so Enter on a fresh search does nothing rather than adding whatever happened to rank first. The pointer moves the same index on `mouseenter`, so hovering row 7 and pressing Enter can never toggle row 3.
 

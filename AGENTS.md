@@ -37,12 +37,12 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 1. **Load** — rehydrate mints from storage, one batch request, render.
 2. **Search** — by symbol, name, or mint, debounced into the results slot.
 3. **Add** — from a result row; row flips to added, duplicates blocked.
-4. **Remove** — one click, no confirmation.
+4. **Remove** — one click, no confirmation; an eight-second undo restores the last row at its original position.
 5. **Sort** — client-side on price change, market cap, liquidity, volume, holders.
 6. **Timeframe** — 5m / 1h / 6h / 24h across all change columns. No refetch; all four arrive in one response.
 7. **Refresh** — manual button plus "last updated" timestamp.
 
-Built: load, search, add, remove, refresh. Not built yet: sort, the timeframe switch (the table is pinned to 24h at `app/token-table.tsx:14`), and the mobile card layout. Update this line as they land.
+Built: load, search, add, remove with undo, refresh. Not built yet: sort, the timeframe switch (the table is pinned to 24h at `app/token-table.tsx:14`), and the mobile card layout. Update this line as they land.
 
 ## Settled decisions
 
@@ -55,7 +55,8 @@ Built: load, search, add, remove, refresh. Not built yet: sort, the timeframe sw
 - A stored mint Jupiter no longer returns keeps its row and its stored name, with dashes for every metric. Dropping it silently would lose a token the user chose.
 - Malformed, absent or half-written storage falls back to an empty list rather than throwing, and duplicate mints are collapsed on the way in. Two tabs are last-write-wins; that is acceptable, crashing is not.
 - SOL is seeded on the first visit only, tracked by that flag rather than by an empty list, so removed SOL stays removed. An empty watchlist is valid and renders the empty view - one line of copy, no header row over nothing.
-- Snapshot at load, not a live feed. No polling; refresh is manual. A failed refresh reports itself beside the timestamp and leaves the table standing.
+- Snapshot at load, not a live feed. No polling; refresh is manual. A failed refresh reports itself beside the timestamp and leaves the table standing. A temporary remove undo supersedes the error in that slot; the error returns when undo expires.
+- Removing offers an eight-second undo for the last row only. It reinserts the saved entry at its original index through the normal storage commit; a later add, remove, or undo clears it.
 - One anonymous user, one watchlist, one device. Solana only. Soft cap ~50 tokens, under the 100-mint batch limit.
 - Sort and timeframe are session state, not persisted.
 - Desktop table, mobile cards. Same data and flows; both primary.
@@ -79,7 +80,8 @@ Built: load, search, add, remove, refresh. Not built yet: sort, the timeframe sw
 - Name searches send `limit=50` and drop null-liquidity rows in `searchUpstream` — those render blank in every column the app has, so they are empty results, not weak ones. Not an asset-class rule: a filter on the `rwa` tag was rejected because it deletes `NVDAx` and `TSLAx`, which pass on their own numbers.
 - Mint queries (`isMintQuery`) skip both the filter and `limit` — the caller named exact tokens, and `fetchTokens` rehydrates through the same shape, so filtering would strand a watched token in storage. The route caps batches at 100.
 - The exact-symbol pin means "this is what you typed", not "this is safe": accent border and `Exact` tag in accent ink only when the token is also verified, neutral otherwise, suppressed entirely when several unverified tokens share the symbol.
-- A star in a trailing fixed column is both the add control and the membership signal - filled means saved, outline means not, clicking toggles. One target that states the fact and changes it cannot disagree with itself, which a badge plus a separate button can. It replaced an `On list` text badge. A short watchlist sits entirely behind the open panel, so the row has to carry this itself.
+- A star in the search results' trailing fixed column is both the add control and the membership signal - filled means saved, outline means not, clicking toggles. One target that states the fact and changes it cannot disagree with itself, which a badge plus a separate button can. It replaced an `On list` text badge. A short watchlist sits entirely behind the open panel, so the row has to carry this itself.
+- The watchlist row already establishes membership, so its trailing fixed column holds an explicit `×` remove button instead. It fades in on row hover or keyboard focus above 480px, stays visible below it at a 44px target, and turns danger-colored on hover or focus.
 - The star's column is reserved in the resting row, so nothing shifts on hover. A filled star never hides; an empty one fades in on hover or focus above 480px and stays visible below it, where there is no hover and the target is 44px. Opacity, not `display` - it is a tab stop, and tabbing to it is how a keyboard reveals it.
 - Adding uses the token object search already returned. No second fetch, and the row is complete before the next refresh.
 - Unverified and thin tokens are addable. The row says what a token is; it does not decide. The `?` glyph, the launchpad tag and the danger-colored liquidity all follow the token into the watchlist row, where they are read from then on - except when there are no live metrics, since unknown verification is not the same claim as unverified.

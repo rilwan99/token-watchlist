@@ -1,6 +1,5 @@
 "use client";
 
-import StarButton from "@/components/star-button";
 import TokenIcon from "@/components/token-icon";
 import TokenStatus from "@/components/token-status";
 import {
@@ -72,7 +71,7 @@ function TokenRow({
   const thin = isThinLiquidity(token?.liquidity ?? null);
 
   return (
-    <tr>
+    <tr className="group">
       <td className="w-full max-w-0 py-3 pr-4">
         <div className="flex min-w-0 items-center gap-2">
           <TokenIcon
@@ -105,7 +104,14 @@ function TokenRow({
       </td>
       <td className="py-3">
         <div className="flex justify-end">
-          <StarButton filled symbol={symbol} onClick={onRemove} />
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${symbol} from watchlist`}
+            className="flex size-11 items-center justify-center rounded-md text-xl leading-none text-muted opacity-100 transition-[color,opacity] hover:text-down focus-visible:text-down focus-visible:outline-none min-[480px]:size-8 min-[480px]:opacity-0 min-[480px]:group-hover:opacity-100 min-[480px]:group-focus-within:opacity-100"
+          >
+            ×
+          </button>
         </div>
       </td>
     </tr>

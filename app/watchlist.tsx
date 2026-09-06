@@ -8,6 +8,7 @@ import TokenTable from "@/app/token-table";
 import type { Token, WatchEntry } from "@/app/lib/types";
 
 const DEBOUNCE_MS = 250;
+const UNDO_MS = 8_000;
 
 // No row is highlighted until an arrow key asks for one, so Enter on a fresh search does
 // nothing rather than adding whatever happens to be first.
@@ -26,8 +27,10 @@ export default function Watchlist() {
   const [highlighted, setHighlighted] = useState(NO_HIGHLIGHT);
   const [dismissed, setDismissed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [undo, setUndo] = useState<{ entry: WatchEntry; index: number } | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const watchlist = entries ?? [];
   const watched = new Set(watchlist.map((entry) => entry.mint));
@@ -59,18 +62,51 @@ export default function Watchlist() {
     saveEntries(next);
   }
 
-  function toggle(token: Token) {
-    if (watched.has(token.id)) {
-      commit(watchlist.filter((entry) => entry.mint !== token.id));
-      return;
-    }
+  function clearUndo() {
+    if (undoTimer.current !== null) clearTimeout(undoTimer.current);
+    undoTimer.current = null;
+    setUndo(null);
+  }
+
+  function add(token: Token) {
+    clearUndo();
     commit([...watchlist, toWatchEntry(token)]);
     setMetrics((current) => new Map(current).set(token.id, token));
   }
 
-  function remove(mint: string) {
-    commit(watchlist.filter((entry) => entry.mint !== mint));
+  function toggle(token: Token) {
+    if (watched.has(token.id)) {
+      remove(token.id);
+      return;
+    }
+    add(token);
   }
+
+  function remove(mint: string) {
+    const index = watchlist.findIndex((entry) => entry.mint === mint);
+    const entry = watchlist[index];
+    if (entry === undefined) return;
+
+    clearUndo();
+    commit(watchlist.filter((entry) => entry.mint !== mint));
+    setUndo({ entry, index });
+    undoTimer.current = setTimeout(() => {
+      setUndo(null);
+      undoTimer.current = null;
+    }, UNDO_MS);
+  }
+
+  function restore() {
+    if (undo === null) return;
+
+    const { entry, index } = undo;
+    clearUndo();
+    commit([...watchlist.slice(0, index), entry, ...watchlist.slice(index)]);
+  }
+
+  useEffect(() => () => {
+    if (undoTimer.current !== null) clearTimeout(undoTimer.current);
+  }, []);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -183,10 +219,23 @@ export default function Watchlist() {
       </div>
 
       <div className="flex items-start justify-between gap-4 pb-4 text-xs">
-        <span className={error === null ? "text-muted" : "text-down"}>
-          {error ??
-            (updatedAt === null ? " " : `Updated ${updatedAt.toLocaleTimeString("en-US")}`)}
-        </span>
+        {undo === null ? (
+          <span className={error === null ? "text-muted" : "text-down"}>
+            {error ??
+              (updatedAt === null ? " " : `Updated ${updatedAt.toLocaleTimeString("en-US")}`)}
+          </span>
+        ) : (
+          <span role="status" className="text-muted">
+            Removed {undo.entry.symbol} · {" "}
+            <button
+              type="button"
+              onClick={restore}
+              className="font-medium text-ink underline decoration-edge underline-offset-2 transition-colors hover:text-accent focus-visible:text-accent focus-visible:outline-none"
+            >
+              Undo
+            </button>
+          </span>
+        )}
         <button
           type="button"
           onClick={() => void refresh(watchlist.map((entry) => entry.mint))}
