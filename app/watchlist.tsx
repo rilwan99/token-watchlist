@@ -113,16 +113,65 @@ export default function Watchlist() {
 
   return (
     <div className="w-full">
+      <div className="mb-3 flex items-baseline gap-2">
+        <h1 className="text-lg font-medium text-ink">Watchlist</h1>
+        {entries === null ? null : <span className="text-sm text-faint">{entries.length}</span>}
+      </div>
+
       <div ref={searchRef} className="mb-4" onKeyDown={handleKeyDown}>
-        <input
-          ref={inputRef}
-          type="search"
-          value={query}
-          onChange={(event) => changeQuery(event.target.value)}
-          placeholder="Search by symbol, name, or mint"
-          aria-label="Search tokens"
-          className="w-full rounded-md border border-edge bg-ground px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-muted focus:outline-none"
-        />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <input
+            ref={inputRef}
+            type="search"
+            value={query}
+            onChange={(event) => changeQuery(event.target.value)}
+            placeholder="Search by symbol, name, or mint"
+            aria-label="Search tokens"
+            className="h-[34px] w-full rounded-md border border-edge bg-surface px-3 text-sm text-ink placeholder:text-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent min-[480px]:max-w-[320px]"
+          />
+          <div className="ml-auto flex items-center gap-2 max-[479px]:ml-0 max-[479px]:w-full">
+            {undo === null ? (
+              <span className="min-w-0 flex-1 truncate text-xs text-faint">
+                {error ??
+                  (updatedAt === null ? " " : `Updated ${updatedAt.toLocaleTimeString("en-US")}`)}
+              </span>
+            ) : (
+              <span role="status" className="min-w-0 flex-1 truncate text-xs text-faint">
+                Removed {undo.entry.symbol} · {" "}
+                <button
+                  type="button"
+                  onClick={restore}
+                  className="font-medium text-ink underline decoration-edge underline-offset-2 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                >
+                  Undo
+                </button>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => void refresh(watchlist.map((entry) => entry.mint))}
+              disabled={isRefreshing}
+              aria-busy={isRefreshing}
+              aria-label="Refresh prices"
+              className="flex size-7 shrink-0 items-center justify-center rounded-md text-faint transition-colors hover:bg-raised hover:text-ink disabled:opacity-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={`size-4 ${isRefreshing ? "animate-spin motion-reduce:animate-none" : ""}`}
+              >
+                <path d="M20 11a8 8 0 1 0 2.3 5.7" />
+                <path d="M20 4v7h-7" />
+              </svg>
+              <span className="sr-only">{isRefreshing ? "Refreshing prices" : "Refresh prices"}</span>
+            </button>
+          </div>
+        </div>
         <div
           inert={!open}
           className={`overflow-hidden transition-[height] duration-200 ease-out motion-reduce:transition-none ${
@@ -147,44 +196,7 @@ export default function Watchlist() {
         </div>
       </div>
 
-      <div className="flex items-start justify-between gap-4 pb-4 text-xs">
-        {undo === null ? (
-          <span className={error === null ? "text-muted" : "text-down"}>
-            {error ??
-              (updatedAt === null ? " " : `Updated ${updatedAt.toLocaleTimeString("en-US")}`)}
-          </span>
-        ) : (
-          <span role="status" className="text-muted">
-            Removed {undo.entry.symbol} · {" "}
-            <button
-              type="button"
-              onClick={restore}
-              className="font-medium text-ink underline decoration-edge underline-offset-2 transition-colors hover:text-accent focus-visible:text-accent focus-visible:outline-none"
-            >
-              Undo
-            </button>
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={() => void refresh(watchlist.map((entry) => entry.mint))}
-          disabled={isRefreshing}
-          className="shrink-0 rounded-md border border-edge px-3 py-1.5 font-medium text-ink transition-colors hover:bg-edge disabled:opacity-50"
-        >
-          {isRefreshing ? "Refreshing..." : "Refresh"}
-        </button>
-      </div>
-
-      {entries === null ? null : entries.length === 0 ? (
-        <div className="py-12 text-center">
-          <p className="text-base font-medium text-ink">Start your watchlist</p>
-          <p className="mt-1.5 text-sm text-muted">
-            Search above by symbol, name, or mint to add your first token.
-          </p>
-        </div>
-      ) : (
-        <TokenTable entries={entries} metrics={metrics} onRemove={remove} />
-      )}
+      {entries === null ? null : <TokenTable entries={entries} metrics={metrics} onRemove={remove} />}
     </div>
   );
 }

@@ -6,13 +6,6 @@ function isNumber(value: number | null): value is number {
   return value !== null && Number.isFinite(value);
 }
 
-/** Full precision price for the desktop table. Sub-cent tokens need more decimals than $102.56. */
-export function formatPrice(value: number | null): string {
-  if (!isNumber(value)) return DASH;
-  const maximumFractionDigits = value < 0.01 ? 8 : value < 1 ? 6 : 2;
-  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits })}`;
-}
-
 const SUBSCRIPT_DIGITS = "₀₁₂₃₄₅₆₇₈₉";
 
 function toSubscript(count: number): string {
@@ -25,9 +18,7 @@ function toSubscript(count: number): string {
 /**
  * Price for the mobile row, where the column has no room to grow: 2dp at a dollar and up,
  * 4dp down to a cent, and subscript-zero notation below it - $0.00005545 renders $0.0₄5545,
- * the subscript counting the zeros. Nine characters covers every price a token actually
- * trades at, where `formatPrice` spends eighteen on $0.00005545. The desktop table keeps
- * `formatPrice`; it has the width to show the digits in full.
+ * the subscript counting the zeros. Nine characters keeps the fixed price column compact.
  */
 export function formatPriceCompact(value: number | null): string {
   if (!isNumber(value)) return DASH;
@@ -99,8 +90,8 @@ export function isMintAddress(value: string): boolean {
   return BASE58_MINT.test(value);
 }
 
-// Below this, liquidity renders in the danger color: a token nobody can exit is a worse trap
-// than an unverified one. Unknown liquidity is not thin - it is unknown, and reads as a dash.
+// Below this, liquidity carries an amber warning. Unknown liquidity is not thin - it is unknown,
+// and reads as a dash.
 const LOW_LIQUIDITY_USD = 10_000;
 
 /** Shared by the search row and the watchlist row, so one threshold governs both. */

@@ -28,53 +28,76 @@ export default function TokenTable({
   }
 
   return (
-    <>
-      <div className="min-[480px]:hidden">
-        <ul className="overflow-hidden rounded-md border border-edge">
-          {entries.map((entry) => (
-            <TokenCard
-              key={entry.mint}
-              entry={entry}
-              token={metrics.get(entry.mint) ?? null}
-              timeframe={TIMEFRAME}
-              open={openMint === entry.mint}
-              onToggle={() =>
-                setOpenMint((current) => (current === entry.mint ? null : entry.mint))
-              }
-              onRemove={() => handleRemove(entry.mint)}
-            />
-          ))}
-        </ul>
-      </div>
+    <section className="overflow-hidden rounded-xl border border-edge bg-surface">
+      {entries.length === 0 ? (
+        <div className="flex min-h-[320px] flex-col items-center justify-center px-6 text-center">
+          <p className="text-base font-medium text-ink">Start your watchlist</p>
+          <p className="mt-1.5 text-sm text-muted">
+            Search above by symbol, name, or mint to add your first token.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="min-h-[320px] min-[480px]:hidden">
+            <ul className="divide-y divide-line">
+              {entries.map((entry) => (
+                <TokenCard
+                  key={entry.mint}
+                  entry={entry}
+                  token={metrics.get(entry.mint) ?? null}
+                  timeframe={TIMEFRAME}
+                  open={openMint === entry.mint}
+                  onToggle={() =>
+                    setOpenMint((current) => (current === entry.mint ? null : entry.mint))
+                  }
+                  onRemove={() => handleRemove(entry.mint)}
+                />
+              ))}
+            </ul>
+          </div>
 
-      <div className="hidden w-full overflow-x-auto min-[480px]:block">
-        <table className="w-full text-left text-sm">
-          <thead className="whitespace-nowrap border-b border-edge text-xs uppercase tracking-wide text-muted">
-            <tr>
-              <th scope="col" className="w-full max-w-0 py-3 pr-4 font-medium">Token</th>
-              <th scope="col" className="py-3 pr-4 text-right font-medium">Price</th>
-              <th scope="col" className="py-3 pr-4 text-right font-medium">{TIMEFRAME}</th>
-              <th scope="col" className="py-3 pr-4 text-right font-medium">Market cap</th>
-              <th scope="col" className="py-3 pr-4 text-right font-medium">Liquidity</th>
-              <th scope="col" className="py-3 pr-4 text-right font-medium">Holders</th>
-              <th scope="col" className="py-3">
-                <span className="sr-only">Remove from watchlist</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-edge">
-            {entries.map((entry) => (
-              <TokenRow
-                key={entry.mint}
-                entry={entry}
-                token={metrics.get(entry.mint) ?? null}
-                timeframe={TIMEFRAME}
-                onRemove={() => handleRemove(entry.mint)}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
+          <div className="hidden min-h-[320px] overflow-x-auto min-[480px]:block">
+            <table className="min-w-[640px] w-full table-fixed text-left text-[13px]">
+              <colgroup>
+                <col />
+                <col className="w-[92px]" />
+                <col className="w-[68px]" />
+                <col className="w-[72px]" />
+                <col className="w-[72px]" />
+                <col className="w-[60px]" />
+                <col className="w-[28px]" />
+              </colgroup>
+              <thead className="whitespace-nowrap border-b border-edge bg-raised text-[11px] uppercase tracking-wide text-faint">
+                <tr>
+                  <th scope="col" className="py-3 pl-4 pr-3 font-medium">Token</th>
+                  <th scope="col" className="px-2 py-3 text-right font-medium">Price</th>
+                  <th scope="col" className="px-2 py-3 text-right font-medium">{TIMEFRAME}</th>
+                  <th scope="col" className="px-2 py-3 text-right font-medium">Market cap</th>
+                  <th scope="col" className="px-2 py-3 text-right font-medium">Liquidity</th>
+                  <th scope="col" className="px-2 py-3 text-right font-medium">Holders</th>
+                  <th scope="col" className="py-3 pr-2">
+                    <span className="sr-only">Remove from watchlist</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {entries.map((entry) => (
+                  <TokenRow
+                    key={entry.mint}
+                    entry={entry}
+                    token={metrics.get(entry.mint) ?? null}
+                    timeframe={TIMEFRAME}
+                    onRemove={() => handleRemove(entry.mint)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+      <footer className="border-t border-edge bg-raised px-4 py-3 text-xs text-faint">
+        Prices update when you refresh.
+      </footer>
+    </section>
   );
 }

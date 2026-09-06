@@ -42,7 +42,7 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 6. **Timeframe** — 5m / 1h / 6h / 24h across all change columns. No refetch; all four arrive in one response.
 7. **Refresh** — manual button plus "last updated" timestamp.
 
-Built: load, search with animated mobile results, add, remove with undo, refresh, the desktop table, and the redesigned mobile accordion with animated details. Not built yet: sort and the timeframe switch (both layouts are pinned to 24h by the `TIMEFRAME` const at `app/token-table.tsx:10`, which passes it to both as a prop). Update this line as they land.
+Built: load from storage, search with animated mobile results, add, remove with undo, manual refresh, the unified dark watchlist card, desktop table, and mobile accordion with animated details. Not built yet: sort and the 5m/1h/6h/24h switch (both layouts are pinned to 24h). Update this line as they land.
 
 ## Settled decisions
 
@@ -50,7 +50,7 @@ Built: load, search with animated mobile results, add, remove with undo, refresh
 
 - Storage holds identity only - mint, symbol, name, icon URL, in saved order - plus a `seeded` flag. Never price, market cap, liquidity or holders: a cached number is wrong the moment it is written.
 - Storage is written only by an add or a remove, never by a fetch. That is what stops a response that was already in flight from resurrecting a row the user just removed.
-- Rows paint from storage on the first commit, with dashes in the numeric columns, and the fetch fills them in. Nothing waits on the network to know what is on the list, so there is no full-page spinner - only the Refresh button's own label and a `Refreshing...` state.
+- Rows paint from storage on the first commit, with dashes in the numeric columns, and the fetch fills them in. Nothing waits on the network to know what is on the list, so there is no full-page spinner - only the refresh button's disabled, spinning-icon state.
 - The mint is the key everywhere. Symbols collide - `unipcs` returns four tokens whose symbol or name is some arrangement of UNIPCS and BONKGUY - so keying by symbol adds the wrong token and invents duplicates.
 - `isMintAddress` in `app/lib/format.ts` is the only base58 mint check. Storage narrowing, the route's batch guard, `isMintQuery`, and the search row's address reveal all call it; it once existed as four copied regex literals. Never inline a fresh one.
 - A stored mint Jupiter no longer returns keeps its row and its stored name, with dashes for every metric. Dropping it silently would lose a token the user chose.
@@ -60,8 +60,9 @@ Built: load, search with animated mobile results, add, remove with undo, refresh
 - Removing offers an eight-second undo for the last row only. It reinserts the saved entry at its original index through the normal storage commit; a later add, remove, or undo clears it.
 - One anonymous user, one watchlist, one device. Solana only. Soft cap ~50 tokens, under the 100-mint batch limit.
 - Sort and timeframe are session state, not persisted.
-- Desktop table and mobile cards are separate render paths over the same data and flows. The redesigned accordion stays below 480px; desktop keeps its original table.
+- Desktop table and mobile cards are separate render paths over the same data and flows, enclosed by one bounded surface card with a desktop header band and a manual-refresh footer. The accordion stays below 480px; empty lists keep the card and footer but omit the header band.
 - Accordion state is session state too, and only one card is open at a time.
+- The dark palette is role-based: ground is the page, surface is a card, raised is bands and hover, edge and line separate surfaces and rows, ink/muted/faint distinguish primary/secondary/tertiary text, accent is lime selection and verification, warn is amber liquidity risk, and up/down are reserved for price direction.
 
 ### The search slot
 
@@ -83,8 +84,8 @@ Built: load, search with animated mobile results, add, remove with undo, refresh
 - The mobile collapsed row carries an icon, symbol, verified check when applicable, truncated name, stacked price/24h change, and an up/down chevron; the whole row toggles its drawer. The desktop table remains non-accordion.
 - The mobile drawer is visually joined under its row with a left accent rule. Its order is market-cap/liquidity/volume stat grid, wrapping trust/context chips (verification, holders and launchpad where available), then mint/copy/remove utilities. The remove icon is bordered red only and every missing metric reads `—`.
 - The mobile panel expands and collapses over 200ms with the same ease-out rhythm as search, and its content fades and slides with it. It stays rendered but inert and hidden from assistive technology while collapsed.
-- `formatPriceCompact` caps at nine characters using subscript-zero notation ($0.0₄5545) in the mobile price column; the desktop table keeps `formatPrice` at full precision.
-- A 24h change that rounds to 0.00% renders neutral and unsigned on the card (`changeTone`): a stablecoin that hasn't moved is not up. The table keeps its older sign-of-the-raw-value rule.
+- `formatPriceCompact` caps at nine characters using subscript-zero notation ($0.0₄5545) in both price columns, keeping the desktop's fixed 92px price column stable.
+- A 24h change that rounds to 0.00% renders neutral and unsigned in both layouts through `changeTone` and `formatChange`: a stablecoin that hasn't moved is not up.
 
 ### Result rows
 
@@ -96,9 +97,9 @@ Built: load, search with animated mobile results, add, remove with undo, refresh
 - The desktop table's trailing fixed column holds an explicit `×` remove button, revealed on row hover or keyboard focus. The mobile drawer instead has an always-visible 36px bordered remove icon beside copy.
 - The star's column is reserved in the resting row, so nothing shifts on hover. A filled star never hides; an empty one fades in on hover or focus above 480px and stays visible below it, where there is no hover and the target is 44px. Opacity, not `display` - it is a tab stop, and tabbing to it is how a keyboard reveals it.
 - Adding uses the token object search already returned. No second fetch, and the row is complete before the next refresh.
-- Unverified and thin tokens are addable. The row says what a token is; it does not decide. The `?` glyph, the launchpad tag and the danger-colored liquidity all follow the token into the watchlist row, where they are read from then on - except when there are no live metrics, since unknown verification is not the same claim as unverified.
-- Row grid: identity, market cap, 24h volume, a vertical rule, liquidity, organic. Market cap and volume are compared against each other in primary ink; liquidity and organic are checked against a threshold in secondary, and liquidity turns `text-down` below it. Units live in the header row, not per line.
-- Unverified rows read recessive: muted symbol, 40%-opacity icon, launchpad tag. No pill — one fixed-width slot holds `✓` or `?` so nothing after it shifts. It always renders a glyph; this is the row's primary verification signal, and absence is too quiet to carry it.
+- Unverified and thin tokens are addable. The row says what a token is; it does not decide. The absent verified check, launchpad tag and amber thin-liquidity warning all follow the token into the watchlist row, where they are read from then on - except when there are no live metrics, since unknown verification is not the same claim as unverified.
+- Row grid: identity, market cap, 24h volume, a vertical rule, liquidity, organic. Market cap and volume are compared against each other in primary ink; liquidity and organic are checked against a threshold in secondary, and thin liquidity adds an amber warning triangle before its secondary-ink value. Units live in the header row, not per line.
+- Unverified rows read recessive: muted symbol, 40%-opacity icon, and launchpad tag. Verification is an accent check only when asserted by live data; its absence is the unverified signal, with no reserved glyph slot.
 - The mint is off the row by default; hover or keyboard focus swaps the name line for the truncated address plus a copy button. Opacity, not `display` — the button is the row's only tab stop. A base58 query (32-44 chars) shows the address on every row without hover.
 - Copying a mint from a search row is desktop-only, by decision. Touch has no hover, so below 480px the row keeps the name and the star is its only tap target. Copying on a phone lives in the watchlist card's accordion panel, where there is room for it. Don't add a mobile reveal to the search row.
 - `formatCompactUsd` is three significant figures, so every cell caps at five characters and the right-aligned edge holds. Missing values are an em dash, never `$0`.

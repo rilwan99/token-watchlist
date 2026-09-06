@@ -19,9 +19,9 @@ export default function TokenIcon({
     return (
       <span
         aria-hidden="true"
-        className={`${className} flex shrink-0 items-center justify-center rounded-full bg-edge text-[10px] font-medium text-muted`}
+        className={`${className} flex shrink-0 items-center justify-center rounded-full bg-raised text-[10px] font-medium text-muted`}
       >
-        {symbol.slice(0, 1).toUpperCase()}
+        {symbol.slice(0, 2).toUpperCase()}
       </span>
     );
   }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import StarButton from "@/components/star-button";
 import TokenIcon from "@/components/token-icon";
 import TokenStatus from "@/components/token-status";
+import WarningTriangle from "@/components/warning-triangle";
 import { formatCompactUsd, formatMint, isMintAddress, isThinLiquidity, volume24h } from "@/app/lib/format";
 import type { OrganicScoreLabel, Token } from "@/app/lib/types";
 
@@ -14,9 +15,9 @@ export type SearchState =
 
 type SearchRowItem = { token: Token; exact: boolean };
 
-const PANEL = "flex min-h-0 flex-1 flex-col rounded-md border border-edge bg-ground";
+const PANEL = "flex min-h-0 flex-1 flex-col rounded-xl border border-edge bg-surface";
 const CENTERED = `${PANEL} items-center justify-center gap-3 px-6 text-center`;
-const SCROLLER = "min-h-0 flex-1 divide-y divide-edge";
+const SCROLLER = "min-h-0 flex-1 divide-y divide-line";
 const SKELETON_ROWS = 5;
 
 const GRID =
@@ -80,13 +81,13 @@ export default function SearchResults({
     return (
       <div role="status" className={CENTERED}>
         <div>
-          <p className="text-sm text-down">Search couldn&apos;t be reached.</p>
+          <p className="text-sm text-ink">Search couldn&apos;t be reached.</p>
           <p className="mt-1 text-xs text-muted">{state.message}</p>
         </div>
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-md border border-edge px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-edge"
+          className="rounded-md border border-edge px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-raised focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
         >
           Retry
         </button>
@@ -142,7 +143,7 @@ export default function SearchResults({
 
 function ResultsEnd({ count }: { count: number }) {
   return (
-    <li className="flex h-[53px] items-center px-3 text-[11px] text-muted">
+    <li className="flex h-[53px] items-center px-3 text-[11px] text-faint">
       {count === 1 ? "1 match" : `${count} matches`} · End of results
     </li>
   );
@@ -152,7 +153,7 @@ function ResultsHeader() {
   return (
     <li
       role="presentation"
-      className={`${GRID} sticky top-0 z-10 border-l-2 border-transparent bg-ground px-3 py-1.5 text-[11px] text-muted shadow-[0_1px_0_var(--color-edge)] max-[479px]:hidden`}
+      className={`${GRID} sticky top-0 z-10 border-l-2 border-transparent bg-raised px-3 py-1.5 text-[11px] text-faint shadow-[0_1px_0_var(--color-edge)] max-[479px]:hidden`}
     >
       <span />
       <span className={CELL_MCAP}>Market cap</span>
@@ -199,7 +200,7 @@ function SkeletonRow() {
 }
 
 const ORGANIC_BAR: Record<OrganicScoreLabel, string> = {
-  high: "bg-up",
+  high: "bg-accent",
   medium: "bg-ink",
   low: "bg-muted",
 };
@@ -262,7 +263,7 @@ function SearchRow({
       onMouseEnter={onHighlight}
       className={`group ${GRID} scroll-mt-7 border-l-2 px-3 py-2 text-sm ${
         endorsed ? "border-accent" : exact ? "border-muted" : "border-transparent"
-      } ${highlighted ? "bg-edge/40" : endorsed ? "bg-accent/5" : ""}`}
+      } ${highlighted ? "bg-raised" : endorsed ? "bg-accent/5" : ""}`}
     >
       <div className="flex min-w-0 items-center gap-2">
         <TokenIcon
@@ -300,7 +301,7 @@ function SearchRow({
                 type="button"
                 onClick={handleCopy}
                 aria-label={`Copy the ${token.symbol} mint address`}
-                className="rounded px-0.5 text-muted hover:text-ink focus-visible:text-ink focus-visible:outline-none"
+                className="rounded px-0.5 text-muted hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
               >
                 {copied ? "✓" : "⧉"}
                 <span className="sr-only" aria-live="polite">{copied ? "Address copied" : ""}</span>
@@ -310,7 +311,8 @@ function SearchRow({
 
           <p className="truncate text-xs text-muted min-[480px]:hidden">
             MC {formatCompactUsd(token.mcap)}, Vol {formatCompactUsd(volume)},{" "}
-            <span className={thin ? "text-down" : undefined}>
+            <span className="inline-flex items-center gap-1">
+              {thin ? <WarningTriangle /> : null}
               Liq {formatCompactUsd(token.liquidity)}
             </span>
             , Organic {organic ?? "—"}
@@ -323,8 +325,11 @@ function SearchRow({
       <span className={CELL_RULE}>
         <span className="h-[22px] w-px bg-edge" />
       </span>
-      <span className={`${CELL_LIQUIDITY} ${thin ? "text-down" : "text-muted"}`}>
-        {formatCompactUsd(token.liquidity)}
+      <span className={`${CELL_LIQUIDITY} text-muted`}>
+        <span className="inline-flex items-center justify-end gap-1">
+          {thin ? <WarningTriangle /> : null}
+          {formatCompactUsd(token.liquidity)}
+        </span>
       </span>
       <span className={CELL_ORGANIC}>
         {organic === null ? (

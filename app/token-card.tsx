@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import TokenIcon from "@/components/token-icon";
+import WarningTriangle from "@/components/warning-triangle";
 import {
   changeTone,
   formatChange,
@@ -17,7 +18,7 @@ import type { Timeframe, Token, WatchEntry } from "@/app/lib/types";
 const TONE: Record<"up" | "down" | "flat", string> = {
   up: "text-up",
   down: "text-down",
-  flat: "text-muted",
+  flat: "text-faint",
 };
 
 /**
@@ -72,13 +73,13 @@ export default function TokenCard({
   }
 
   return (
-    <li ref={cardRef} className="border-b border-edge last:border-b-0">
+    <li ref={cardRef}>
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={panelId}
-        className="flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-surface/70 active:bg-edge/40"
+        className="flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-raised active:bg-raised focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
       >
         <TokenIcon
           src={icon}
@@ -92,7 +93,11 @@ export default function TokenCard({
               {symbol}
             </span>
             {token?.isVerified ? (
-              <span className="shrink-0 text-xs text-up" aria-label="Verified">✓</span>
+              <span className="shrink-0 text-accent" aria-label="Verified">
+                <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
+                  <path d="m3 8 3 3 7-7" />
+                </svg>
+              </span>
             ) : null}
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted">{name}</span>
@@ -140,7 +145,7 @@ export default function TokenCard({
               <DrawerStat
                 label="Liquidity"
                 value={formatCompactUsd(token?.liquidity ?? null)}
-                tone={thin ? "danger" : "default"}
+                warning={thin}
               />
               <DrawerStat
                 label="24h volume"
@@ -165,10 +170,10 @@ export default function TokenCard({
                   type="button"
                   onClick={handleCopy}
                   aria-label={`Copy the ${symbol} mint address`}
-                  className="flex size-9 items-center justify-center rounded-md border border-edge text-muted transition-colors hover:border-muted hover:text-ink focus-visible:border-accent focus-visible:text-ink focus-visible:outline-none"
+                  className="flex size-9 items-center justify-center rounded-md border border-edge text-muted transition-colors hover:border-muted hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                 >
                   {copied ? (
-                    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-up">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-accent">
                       <path d="m5 12 4 4L19 6" />
                     </svg>
                   ) : (
@@ -183,7 +188,7 @@ export default function TokenCard({
                   type="button"
                   onClick={onRemove}
                   aria-label={`Remove ${symbol} from watchlist`}
-                  className="flex size-9 items-center justify-center rounded-md border border-down/70 text-down transition-colors hover:border-down focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-down"
+                  className="flex size-9 items-center justify-center rounded-md border border-edge text-muted transition-colors hover:border-muted hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4">
                     <path d="M6 6l12 12M18 6 6 18" />
@@ -201,21 +206,18 @@ export default function TokenCard({
 function DrawerStat({
   label,
   value,
-  tone = "default",
+  warning = false,
 }: {
   label: string;
   value: string;
-  tone?: "default" | "danger";
+  warning?: boolean;
 }) {
   return (
     <div className="min-w-0 px-2.5 py-2.5 first:pl-3 last:pr-3 sm:px-4">
-      <dt className="truncate text-[10px] uppercase tracking-wide text-muted">{label}</dt>
-      <dd
-        className={`mt-1 truncate font-mono text-sm tabular-nums ${
-          tone === "danger" ? "text-down" : "text-ink"
-        }`}
-      >
-        {value}
+      <dt className="truncate text-[10px] uppercase tracking-wide text-faint">{label}</dt>
+      <dd className="mt-1 flex min-w-0 items-center gap-1 truncate font-mono text-sm tabular-nums text-ink">
+        {warning ? <WarningTriangle /> : null}
+        <span className="truncate">{value}</span>
       </dd>
     </div>
   );
@@ -231,7 +233,7 @@ function SignalChip({
   return (
     <span className={`rounded-full border px-2 py-0.5 text-[11px] leading-4 ${
       tone === "positive"
-        ? "border-up/40 bg-up/10 text-up"
+        ? "border-accent/40 bg-accent/10 text-accent"
         : "border-accent/40 bg-accent/10 text-accent"
     }`}>
       {children}

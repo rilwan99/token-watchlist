@@ -6,16 +6,18 @@
 
 /* Dark-only: there are no light-mode variants, so every color is declared once. */
 @theme {
-  --color-ground: #0b0e14;
-  --color-surface: #121722;
-  --color-edge: #1e2635;
-  --color-ink: #e6eaf2;
-  --color-muted: #8a94a6;
-  --color-up: #3fd68c;
-  --color-down: #ff6b6b;
-  /* Selection, not direction: --color-up is the green for price gains and would misread
-     as "this token went up" on the pinned exact match. */
-  --color-accent: #4c8dff;
+  --color-ground: #0B0D0F;
+  --color-surface: #101316;
+  --color-raised: #15181C;
+  --color-edge: #212528;
+  --color-line: #1A1D21;
+  --color-ink: #E7E9EA;
+  --color-muted: #979CA1;
+  --color-faint: #6A6F75;
+  --color-up: #3FCF8E;
+  --color-down: #F0616D;
+  --color-warn: #E3A008;
+  --color-accent: #C7F284;
 }
 
 :root {

@@ -22,8 +22,8 @@ export default function StarButton({
           ? `Remove ${symbol} from watchlist`
           : `Add ${symbol} to watchlist`
       }
-      className={`flex size-11 items-center justify-center rounded-md transition-colors focus-visible:outline-none min-[480px]:size-8 ${
-        filled ? "text-accent" : "text-muted hover:text-ink focus-visible:text-ink"
+      className={`flex size-11 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent min-[480px]:size-8 ${
+        filled ? "text-accent" : "text-muted hover:text-ink"
       } ${className}`}
     >
       <svg
