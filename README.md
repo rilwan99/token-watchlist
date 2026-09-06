@@ -29,7 +29,9 @@ There is no test script.
 
 Built: load from storage, search with animated mobile results, add, remove with undo, manual refresh, the unified dark watchlist card, desktop table, and mobile accordion with animated details.
 
-Not built yet: sort and the 5m/1h/6h/24h switch (both layouts are pinned to 24h).
+Not built yet: sort.
+
+The 5m/1h/6h/24h switch is cut rather than pending. Every change column is 24h, and the type mirrors that: `Token` carries a single `stats24h`, not a map keyed by timeframe. Keeping the four-window shape around a control that isn't coming would be scaffolding for a feature, and the cost of adding it back is one line in `toToken`.
 
 ## Decisions
 
@@ -93,7 +95,11 @@ Adding uses the token object the search already returned, so the new row arrives
 
 **Unverified and illiquid tokens are addable, and they carry their warnings with them.** Blocking them would be the wrong call — a thin unverified token is exactly the kind of thing a watchlist is for, and the row's job is to say what a token is, not to decide. So the absent verified check, launchpad tag, dimmed icon and amber liquidity triangle all follow the token into the watchlist row, where it's actually looked at from then on. They render only when the live token is in hand: for a row painted from storage alone, verification is unknown, and an absent check makes no stronger claim.
 
-**One dark card encloses both layouts.** It has a raised desktop header band, line-divided rows, a manual-refresh footer, and a 320px minimum body; an empty list keeps the card and footer but omits the useless header row. Below 480px the watchlist uses the redesigned accordion; above it the fixed-column table has a 92px compact-price column and hover-revealed remove control.
+**One dark card encloses both layouts.** It has a raised desktop header band, line-divided rows, a manual-refresh footer, and a 320px minimum body; an empty list keeps the card and footer but omits the useless header row. Below 640px the watchlist uses the redesigned accordion; above it the fixed-column table has a 98px compact-price column and hover-revealed remove control. The whole column caps at 1120px and centres, so the search row and the card share a width and a left edge.
+
+**The desktop table reads as two tiers rather than six equal columns.** A watchlist is a monitoring surface, so price and 24h change are the scan pair — 15px in primary ink, and 14px in semantic green or red, both tabular and right-aligned. Market cap, liquidity and holders are context you consult rather than scan, so they drop to 12px secondary and group behind 24px of extra lead, which does the separating that a vertical rule would otherwise have to. Headers are sentence case at 11px: `uppercase` had stretched "Market cap" past its own cell until it ran into "Liquidity" and the two read as one label.
+
+**The table stops rather than scrolling sideways.** It used to keep a 640px minimum inside an `overflow-x-auto`, which meant that between 480px and 640px the columns were technically all present and practically unreachable. Handing that band to the accordion removes the scroll, but it also removes the slack the scroll was hiding: with the numeric columns each sized to the wider of their header and their widest value, the token column is down to about 110px at the 640px floor. The symbol truncates there, and the launchpad tag — the least load-bearing thing on the line — drops out under 768px, because leaving it in consumed the entire symbol and left rows identified by nothing but a `pump.fun` chip. Identity gives way last.
 
 **The mobile drawer answers whether the token still belongs on the list.** Market cap, liquidity and 24h volume lead in equal, tabular-number cells; thin liquidity gets an amber triangle, leaving red and green exclusively for price direction. Trust and context signals follow as wrapping chips: verification, holders, and launchpad where available. The mint and copy/remove icon buttons sit last. Remove is a quiet outlined control and copying swaps its icon to an accent check. If opening a drawer pushes its bottom below the viewport, it scrolls into view after the expansion settles.
 
@@ -146,7 +152,7 @@ It responds with `{ "tokens": [...] }`, or `{ "error": "..." }` with a 400 (bad 
 }
 ```
 
-All four timeframes arrive in the same response, which is why switching between 5m/1h/6h/24h will not need a refetch.
+All four windows arrive in the same response. Only `stats24h` is normalized; the other three are dropped on the way in, since nothing renders them.
 
 ## Layout
 
@@ -154,7 +160,7 @@ All four timeframes arrive in the same response, which is why switching between 
 app/
 ├── api/tokens/route.ts  # The only route: validates the query, calls Jupiter
 ├── lib/tokens.ts        # Server-side Jupiter client and response normalization
-├── lib/types.ts         # Token, TokenStats, Timeframe, WatchEntry
+├── lib/types.ts         # Token, TokenStats, WatchEntry
 ├── lib/api.ts           # Browser-side client for /api/tokens
 ├── lib/storage.ts       # localStorage: saved identities and the seeded flag
 ├── lib/format.ts        # Price, percent, compact USD, count, mint truncation and validation, liquidity threshold, 24h volume

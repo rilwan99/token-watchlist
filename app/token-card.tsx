@@ -13,7 +13,7 @@ import {
   isThinLiquidity,
   volume24h,
 } from "@/app/lib/format";
-import type { Timeframe, Token, WatchEntry } from "@/app/lib/types";
+import type { Token, WatchEntry } from "@/app/lib/types";
 
 const TONE: Record<"up" | "down" | "flat", string> = {
   up: "text-up",
@@ -28,14 +28,12 @@ const TONE: Record<"up" | "down" | "flat", string> = {
 export default function TokenCard({
   entry,
   token,
-  timeframe,
   open,
   onToggle,
   onRemove,
 }: {
   entry: WatchEntry;
   token: Token | null;
-  timeframe: Timeframe;
   open: boolean;
   onToggle: () => void;
   onRemove: () => void;
@@ -46,7 +44,7 @@ export default function TokenCard({
   const symbol = token?.symbol || entry.symbol || "—";
   const name = token?.name || entry.name || "—";
   const icon = token?.icon ?? entry.icon;
-  const change = token?.stats[timeframe].priceChange ?? null;
+  const change = token?.stats24h.priceChange ?? null;
   const thin = isThinLiquidity(token?.liquidity ?? null);
   const panelId = `token-panel-${entry.mint}`;
 
@@ -149,7 +147,7 @@ export default function TokenCard({
               />
               <DrawerStat
                 label="24h volume"
-                value={formatCompactUsd(token === null ? null : volume24h(token.stats[timeframe]))}
+                value={formatCompactUsd(token === null ? null : volume24h(token.stats24h))}
               />
             </dl>
 

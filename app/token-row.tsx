@@ -11,24 +11,22 @@ import {
   formatPriceCompact,
   isThinLiquidity,
 } from "@/app/lib/format";
-import type { Timeframe, Token, WatchEntry } from "@/app/lib/types";
+import type { Token, WatchEntry } from "@/app/lib/types";
 
 /** The desktop-only table row; its market columns remain visible at wider widths. */
 export default function TokenRow({
   entry,
   token,
-  timeframe,
   onRemove,
 }: {
   entry: WatchEntry;
   token: Token | null;
-  timeframe: Timeframe;
   onRemove: () => void;
 }) {
   const symbol = token?.symbol || entry.symbol;
   const name = token?.name || entry.name;
   const icon = token?.icon ?? entry.icon;
-  const change = token?.stats[timeframe].priceChange ?? null;
+  const change = token?.stats24h.priceChange ?? null;
   const changeColor = {
     up: "text-up",
     down: "text-down",
@@ -47,30 +45,41 @@ export default function TokenRow({
             className="size-[22px]"
             dimmed={token !== null && !token.isVerified}
           />
-          <span className="shrink-0 font-medium text-ink">{symbol}</span>
+          {/*
+            Truncates rather than shrink-0: the token column is what the fixed numeric columns
+            leave over, so at the 640px floor a long symbol would otherwise run into Price.
+            The check and launchpad tag keep their width and the symbol gives way first.
+          */}
+          <span className="truncate text-sm font-medium text-ink">{symbol}</span>
           {token === null ? null : (
-            <TokenStatus isVerified={token.isVerified} launchpad={token.launchpad} />
+            <TokenStatus
+              isVerified={token.isVerified}
+              launchpad={token.launchpad}
+              tagClassName="hidden min-[768px]:inline"
+            />
           )}
           </div>
-          <span className="mt-0.5 block truncate pl-[30px] text-xs text-muted">{name}</span>
+          <span className="mt-0.5 block truncate pl-[30px] text-[12px] text-muted">{name}</span>
         </div>
       </td>
-      <td className="px-2 py-[11px] text-right tabular-nums text-ink">
+      {/* Price and change are the scan targets: larger, primary ink, semantic colour. */}
+      <td className="px-3 py-[11px] text-right text-[15px] tabular-nums text-ink">
         {formatPriceCompact(token?.usdPrice ?? null)}
       </td>
-      <td className={`px-2 py-[11px] text-right tabular-nums ${changeColor}`}>
+      <td className={`px-3 py-[11px] text-right text-[14px] tabular-nums ${changeColor}`}>
         {formatChange(change)}
       </td>
-      <td className="px-2 py-[11px] text-right tabular-nums text-muted">
+      {/* Market cap, liquidity and holders read as one secondary cluster, set off by pl-6. */}
+      <td className="py-[11px] pl-6 pr-3 text-right text-[12px] tabular-nums text-muted">
         {formatCompactUsd(token?.mcap ?? null)}
       </td>
-      <td className="px-2 py-[11px] text-right tabular-nums text-muted">
+      <td className="px-3 py-[11px] text-right text-[12px] tabular-nums text-muted">
         <span className="inline-flex items-center justify-end gap-1">
           {thin ? <WarningTriangle /> : null}
           {formatCompactUsd(token?.liquidity ?? null)}
         </span>
       </td>
-      <td className="px-2 py-[11px] text-right tabular-nums text-muted">
+      <td className="px-3 py-[11px] text-right text-[12px] tabular-nums text-muted">
         {formatCount(token?.holderCount ?? null)}
       </td>
       <td className="py-[11px] pr-2">

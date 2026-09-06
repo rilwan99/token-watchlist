@@ -1,9 +1,15 @@
 type TokenStatusProps = {
   isVerified: boolean;
   launchpad: string | null;
+  /**
+   * Extra classes for the launchpad tag. The watchlist row uses it to drop the tag under 768px,
+   * where the fixed numeric columns leave the token column too narrow to spell out a symbol
+   * beside it. The check has no equivalent - verification always renders.
+   */
+  tagClassName?: string;
 };
 
-export default function TokenStatus({ isVerified, launchpad }: TokenStatusProps) {
+export default function TokenStatus({ isVerified, launchpad, tagClassName = "" }: TokenStatusProps) {
   return (
     <>
       {isVerified ? (
@@ -15,7 +21,7 @@ export default function TokenStatus({ isVerified, launchpad }: TokenStatusProps)
         </span>
       ) : null}
       {!isVerified && launchpad !== null ? (
-        <span className="shrink-0 rounded border border-edge px-1 text-[10px] text-muted">
+        <span className={`shrink-0 rounded border border-edge px-1 text-[10px] text-muted ${tagClassName}`}>
           {launchpad}
         </span>
       ) : null}

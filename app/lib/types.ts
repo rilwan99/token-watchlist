@@ -1,5 +1,3 @@
-export type Timeframe = "5m" | "1h" | "6h" | "24h";
-
 /**
  * What localStorage holds: enough to paint a row on reload, and nothing that goes stale.
  * Market data is deliberately absent - a cached price is wrong the moment it is written.
@@ -35,5 +33,9 @@ export type Token = {
   mcap: number | null;
   liquidity: number | null;
   holderCount: number | null;
-  stats: Record<Timeframe, TokenStats>;
+  /**
+   * Jupiter also returns 5m/1h/6h buckets in the same response. Only the 24h window is
+   * rendered, so only it is normalized - the app has no timeframe switch.
+   */
+  stats24h: TokenStats;
 };

@@ -3,11 +3,7 @@
 import { useState } from "react";
 import TokenCard from "@/app/token-card";
 import TokenRow from "@/app/token-row";
-import type { Timeframe, Token, WatchEntry } from "@/app/lib/types";
-
-// The one place both layouts read their timeframe from; it becomes session state when the
-// 5m/1h/6h/24h switch lands.
-const TIMEFRAME: Timeframe = "24h";
+import type { Token, WatchEntry } from "@/app/lib/types";
 
 /** Separate layouts share one entry list: the accordion is mobile-only, the table is desktop-only. */
 export default function TokenTable({
@@ -38,14 +34,13 @@ export default function TokenTable({
         </div>
       ) : (
         <>
-          <div className="min-h-[320px] min-[480px]:hidden">
+          <div className="min-h-[320px] min-[640px]:hidden">
             <ul className="divide-y divide-line">
               {entries.map((entry) => (
                 <TokenCard
                   key={entry.mint}
                   entry={entry}
                   token={metrics.get(entry.mint) ?? null}
-                  timeframe={TIMEFRAME}
                   open={openMint === entry.mint}
                   onToggle={() =>
                     setOpenMint((current) => (current === entry.mint ? null : entry.mint))
@@ -56,25 +51,32 @@ export default function TokenTable({
             </ul>
           </div>
 
-          <div className="hidden min-h-[320px] overflow-x-auto min-[480px]:block">
-            <table className="min-w-[640px] w-full table-fixed text-left text-[13px]">
+          <div className="hidden min-h-[320px] min-[640px]:block">
+            <table className="w-full table-fixed text-left">
+              {/*
+                Token takes what the fixed columns leave, so each of those is the wider of its
+                header and its widest value, plus padding - nothing rounded up. "Market cap" is
+                the widest thing in its own column, and at 72px the labels had overflowed into
+                each other and read as one string. Market cap carries the 24px cluster gap.
+              */}
               <colgroup>
                 <col />
-                <col className="w-[92px]" />
-                <col className="w-[68px]" />
-                <col className="w-[72px]" />
-                <col className="w-[72px]" />
-                <col className="w-[60px]" />
-                <col className="w-[28px]" />
+                <col className="w-[98px]" />
+                <col className="w-[84px]" />
+                <col className="w-[93px]" />
+                <col className="w-[85px]" />
+                <col className="w-[64px]" />
+                <col className="w-[32px]" />
               </colgroup>
-              <thead className="whitespace-nowrap border-b border-edge bg-raised text-[11px] uppercase tracking-wide text-faint">
+              <thead className="whitespace-nowrap border-b border-edge bg-raised text-[11px] text-faint">
                 <tr>
                   <th scope="col" className="py-3 pl-4 pr-3 font-medium">Token</th>
-                  <th scope="col" className="px-2 py-3 text-right font-medium">Price</th>
-                  <th scope="col" className="px-2 py-3 text-right font-medium">{TIMEFRAME}</th>
-                  <th scope="col" className="px-2 py-3 text-right font-medium">Market cap</th>
-                  <th scope="col" className="px-2 py-3 text-right font-medium">Liquidity</th>
-                  <th scope="col" className="px-2 py-3 text-right font-medium">Holders</th>
+                  <th scope="col" className="px-3 py-3 text-right font-medium">Price</th>
+                  <th scope="col" className="px-3 py-3 text-right font-medium">24h</th>
+                  {/* 24px of extra lead separates the secondary cluster from the primary pair. */}
+                  <th scope="col" className="py-3 pl-6 pr-3 text-right font-medium">Market cap</th>
+                  <th scope="col" className="px-3 py-3 text-right font-medium">Liquidity</th>
+                  <th scope="col" className="px-3 py-3 text-right font-medium">Holders</th>
                   <th scope="col" className="py-3 pr-2">
                     <span className="sr-only">Remove from watchlist</span>
                   </th>
@@ -86,7 +88,6 @@ export default function TokenTable({
                     key={entry.mint}
                     entry={entry}
                     token={metrics.get(entry.mint) ?? null}
-                    timeframe={TIMEFRAME}
                     onRemove={() => handleRemove(entry.mint)}
                   />
                 ))}

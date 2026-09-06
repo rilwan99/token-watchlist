@@ -225,7 +225,7 @@ function SearchRow({
   const [copied, setCopied] = useState(false);
   const row = useRef<HTMLLIElement>(null);
 
-  const volume = volume24h(token.stats["24h"]);
+  const volume = volume24h(token.stats24h);
   const thin = isThinLiquidity(token.liquidity);
   const organic = token.organicScore === null ? null : Math.round(token.organicScore);
 

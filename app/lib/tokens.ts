@@ -58,12 +58,7 @@ function toToken(value: unknown): Token | null {
     mcap: asNumber(value.mcap),
     liquidity: asNumber(value.liquidity),
     holderCount: asNumber(value.holderCount),
-    stats: {
-      "5m": toStats(value.stats5m),
-      "1h": toStats(value.stats1h),
-      "6h": toStats(value.stats6h),
-      "24h": toStats(value.stats24h),
-    },
+    stats24h: toStats(value.stats24h),
   };
 }
 

@@ -39,10 +39,9 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 3. **Add** — from a result row; row flips to added, duplicates blocked.
 4. **Remove** — one click, no confirmation; an eight-second undo restores the last row at its original position.
 5. **Sort** — client-side on price change, market cap, liquidity, volume, holders.
-6. **Timeframe** — 5m / 1h / 6h / 24h across all change columns. No refetch; all four arrive in one response.
-7. **Refresh** — manual button plus "last updated" timestamp.
+6. **Refresh** — manual button plus "last updated" timestamp.
 
-Built: load from storage, search with animated mobile results, add, remove with undo, manual refresh, the unified dark watchlist card, desktop table, and mobile accordion with animated details. Not built yet: sort and the 5m/1h/6h/24h switch (both layouts are pinned to 24h). Update this line as they land.
+Built: load from storage, search with animated mobile results, add, remove with undo, manual refresh, the unified dark watchlist card, desktop table, and mobile accordion with animated details. Not built yet: sort. Update this line as it lands. The timeframe switch is cut, not pending — every change column is 24h.
 
 ## Settled decisions
 
@@ -59,8 +58,10 @@ Built: load from storage, search with animated mobile results, add, remove with 
 - Snapshot at load, not a live feed. No polling; refresh is manual. A failed refresh reports itself beside the timestamp and leaves the table standing. A temporary remove undo supersedes the error in that slot; the error returns when undo expires.
 - Removing offers an eight-second undo for the last row only. It reinserts the saved entry at its original index through the normal storage commit; a later add, remove, or undo clears it.
 - One anonymous user, one watchlist, one device. Solana only. Soft cap ~50 tokens, under the 100-mint batch limit.
-- Sort and timeframe are session state, not persisted.
-- Desktop table and mobile cards are separate render paths over the same data and flows, enclosed by one bounded surface card with a desktop header band and a manual-refresh footer. The accordion stays below 480px; empty lists keep the card and footer but omit the header band.
+- Sort is session state, not persisted.
+- 24h is the only timeframe, by decision. Jupiter returns 5m/1h/6h in the same response; `toToken` normalizes only `stats24h`, and `Token.stats24h` is a single `TokenStats`, not a keyed map. There is no switch and no `Timeframe` type — don't reintroduce either as scaffolding.
+- Desktop table and mobile cards are separate render paths over the same data and flows, enclosed by one bounded surface card with a desktop header band and a manual-refresh footer. The accordion stays below 640px; empty lists keep the card and footer but omit the header band.
+- The page column caps at 1120px, centred, so the search row and the card share one width and one left edge. The table never scrolls horizontally — the accordion covers every width the six columns cannot fit.
 - Accordion state is session state too, and only one card is open at a time.
 - The dark palette is role-based: ground is the page, surface is a card, raised is bands and hover, edge and line separate surfaces and rows, ink/muted/faint distinguish primary/secondary/tertiary text, accent is lime selection and verification, warn is amber liquidity risk, and up/down are reserved for price direction.
 
@@ -80,11 +81,13 @@ Built: load from storage, search with animated mobile results, add, remove with 
 
 ### The watchlist row
 
-- `token-table.tsx` picks between two render paths over one entry list: `token-card.tsx` below 480px and `token-row.tsx` above it. Only one is in the flow at once. The parent owns the accordion's `openMint` and the timeframe; the two children own only their own markup.
+- `token-table.tsx` picks between two render paths over one entry list: `token-card.tsx` below 640px and `token-row.tsx` above it. Only one is in the flow at once. The parent owns the accordion's `openMint`; the two children own only their own markup.
+- The desktop row is a two-tier hierarchy, not six equal columns. Price (15px, ink) and 24h change (14px, semantic) are the scan pair; market cap, liquidity and holders are one secondary cluster at 12px muted, set off by 24px of extra lead on market cap. Headers are sentence case at 11px faint — never `uppercase`, which widened "Market cap" past its cell until it ran into "Liquidity".
+- Numeric columns are sized to the wider of their header and their widest value plus padding, measured rather than rounded up; the token column takes the remainder. At 640px that remainder is ~110px, so the symbol truncates and `TokenStatus` takes `tagClassName` to drop the launchpad tag under 768px. Without that the tag ate the whole symbol. Widen a numeric column and you take it from the symbol.
 - The mobile collapsed row carries an icon, symbol, verified check when applicable, truncated name, stacked price/24h change, and an up/down chevron; the whole row toggles its drawer. The desktop table remains non-accordion.
 - The mobile drawer is visually joined under its row with a left accent rule. Its order is market-cap/liquidity/volume stat grid, wrapping trust/context chips (verification, holders and launchpad where available), then mint/copy/remove utilities. The remove icon is bordered red only and every missing metric reads `—`.
 - The mobile panel expands and collapses over 200ms with the same ease-out rhythm as search, and its content fades and slides with it. It stays rendered but inert and hidden from assistive technology while collapsed.
-- `formatPriceCompact` caps at nine characters using subscript-zero notation ($0.0₄5545) in both price columns, keeping the desktop's fixed 92px price column stable.
+- `formatPriceCompact` caps at nine characters using subscript-zero notation ($0.0₄5545) in both price columns, keeping the desktop's fixed 98px price column stable.
 - A 24h change that rounds to 0.00% renders neutral and unsigned in both layouts through `changeTone` and `formatChange`: a stablecoin that hasn't moved is not up.
 
 ### Result rows
@@ -118,7 +121,7 @@ This is a small app. Keep it small.
 - No `useMemo` / `useCallback` without a stated reason.
 - No new abstraction until the same code exists in three places. A focused leaf component that removes duplicated row UI is the exception; no `utils/`, `hooks/`, or generic wrappers for one caller.
 - Page-specific components stay flat in `app/`: `watchlist.tsx` owns membership state and layout, while `search-results.tsx` and `token-table.tsx` render it, the latter delegating to `token-card.tsx` and `token-row.tsx`. Shared row controls live in `components/`: `star-button.tsx`, `token-icon.tsx`, and `token-status.tsx`. Splitting a file past ~300 lines along a seam that already exists is fine.
-- `use-token-search.ts` owns the whole search half - query, debounce, `AbortController`, dismissal, retry, and the arrow/Enter highlight - and takes `onToggle` as its one tie back to membership. It is a deliberate exception to the no-one-caller-wrapper rule: `watchlist.tsx` was running two unrelated state machines in 265 lines, and sort and timeframe still have to land. Don't fold it back in, and don't start a `hooks/` directory - it sits flat in `app/` like everything else.
+- `use-token-search.ts` owns the whole search half - query, debounce, `AbortController`, dismissal, retry, and the arrow/Enter highlight - and takes `onToggle` as its one tie back to membership. It is a deliberate exception to the no-one-caller-wrapper rule: `watchlist.tsx` was running two unrelated state machines in 265 lines, and sort still has to land. Don't fold it back in, and don't start a `hooks/` directory - it sits flat in `app/` like everything else.
 - One source of truth for membership: the ordered entry list in `watchlist.tsx`. Live metrics are a separate mint-keyed map that holds no membership. Never a second list, and never an effect syncing two.
 - No tests unless asked. No mocks, fixtures, or scaffolding.
 - Comments for non-obvious logic and short function-level summaries — nullable API fields, Jupiter quirks, an invariant that isn't visible from the code. Don't annotate lines with what they already say.
