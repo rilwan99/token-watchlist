@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import TokenIcon from "@/components/token-icon";
 import TokenStatus from "@/components/token-status";
 import WarningTriangle from "@/components/warning-triangle";
@@ -8,6 +9,7 @@ import {
   formatCompactUsd,
   formatChange,
   formatCount,
+  formatMint,
   formatPriceCompact,
   isThinLiquidity,
 } from "@/app/lib/format";
@@ -23,6 +25,8 @@ export default function TokenRow({
   token: Token | null;
   onRemove: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
+
   const symbol = token?.symbol || entry.symbol;
   const name = token?.name || entry.name;
   const icon = token?.icon ?? entry.icon;
@@ -33,6 +37,16 @@ export default function TokenRow({
     flat: "text-faint",
   }[changeTone(change)];
   const thin = isThinLiquidity(token?.liquidity ?? null);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(entry.mint).then(
+      () => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2_000);
+      },
+      () => undefined,
+    );
+  }
 
   return (
     <tr className="group transition-colors hover:bg-raised">
@@ -59,7 +73,42 @@ export default function TokenRow({
             />
           )}
           </div>
-          <span className="mt-0.5 block truncate pl-[30px] text-[12px] text-muted">{name}</span>
+          {/*
+            The mint trails the name rather than taking a column of its own: the token cell is
+            what the fixed columns leave over, so a seventh column would come straight out of
+            the symbol. It hides below 900px, where that remainder leaves the name under 50px
+            once the address block has taken its ~103px.
+          */}
+          <div className="mt-0.5 flex min-w-0 items-baseline gap-1.5 pl-[30px] text-[12px]">
+            <span className="truncate text-muted">{name}</span>
+            <span className="hidden shrink-0 items-baseline gap-1.5 text-[11px] text-faint min-[900px]:flex">
+              <span aria-hidden="true">·</span>
+              <span className="font-mono">{formatMint(entry.mint)}</span>
+              {/*
+                Opacity rather than display, and its width is reserved in the resting row: the
+                button is a tab stop, and fading it keeps the name's truncation point fixed
+                whether the row is hovered or not. Same reveal as the remove button below.
+              */}
+              <button
+                type="button"
+                onClick={handleCopy}
+                aria-label={`Copy the ${symbol} mint address`}
+                className="self-center rounded p-0.5 text-faint opacity-0 transition-[color,opacity] hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent group-hover:opacity-100 group-focus-within:opacity-100"
+              >
+                {copied ? (
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3 text-accent">
+                    <path d="m5 12 4 4L19 6" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3">
+                    <rect x="9" y="9" width="10" height="10" rx="1" />
+                    <path d="M5 15V5h10" />
+                  </svg>
+                )}
+                <span className="sr-only" aria-live="polite">{copied ? "Address copied" : ""}</span>
+              </button>
+            </span>
+          </div>
         </div>
       </td>
       {/* Price and change are the scan targets: larger, primary ink, semantic colour. */}

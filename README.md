@@ -27,7 +27,7 @@ There is no test script.
 
 ## Status
 
-Built: load from storage, search with animated mobile results, add, remove with undo, manual refresh, the unified dark watchlist card, desktop table, mobile accordion with animated details, and sort.
+Built: load from storage, search with animated mobile results, add, remove with undo, manual refresh, the unified dark watchlist card, desktop table, mobile accordion with animated details, sort, and the desktop row's mint with hover-copy.
 
 Every flow the app set out to cover is in.
 
@@ -82,6 +82,10 @@ Filtering Jupiter's `rwa` tag instead was tempting and wrong for the same reason
 **The mint address is on the row, but not in the way.** It's the only field that identifies a token beyond doubt and the least scannable thing you could put in a list, so it replaces the name line on hover or keyboard focus, in mono, with a copy button. The two layers swap by opacity rather than `display`, because a `display: none` button can't be tabbed to — reaching that button is what reveals the address, and it's the row's only tab stop. Paste a mint into the search box and every row shows its address without a hover.
 
 On a search row this is deliberately desktop-only. Touch has no hover to trigger the swap, and the alternatives all cost more than they return: a permanently visible address turns five scannable rows into five walls of base58, and a third tap target crowds a row that has one clear job. Below 480px the row keeps the name and the star, and copying a mint happens in the watchlist card's accordion panel, which was built with room for it.
+
+**The watchlist row shows its mint outright, where the search row hides it.** The two rows are read differently: a search panel is five candidates you scan and discard, so five addresses would be five walls of base58, but a watchlist is a handful of tokens you already chose and return to, and the mint is what you take somewhere else. So on the desktop row it trails the name on the same line — faint 11px mono after a separator dot — and the copy button beside it fades in on row hover or focus, the same reveal the `×` uses. That button's width is reserved while it's transparent, so the name truncates at the same character whether the row is hovered or not; the address itself never moves.
+
+It hides below 900px rather than shrinking. The numeric columns are fixed and the token column is whatever they leave, so the ~103px the address occupies comes directly out of the name: at 900px the name still has 226px, at 700px it has 48 and reads `Sol…`. Giving the mint a column of its own was the other option and a worse one — a seventh column takes its width from the symbol, which is already truncating at the 640px floor. The line under the name was space the row had already paid for.
 
 **The search star is the control and the indicator.** A search result ends in a star: filled means saved, outline means not, clicking toggles. A badge that reports membership plus a button that changes it are two things that can disagree; one target that does both cannot. It replaced an `On list` text badge that said the same thing in more space and did nothing. A watchlist row already proves membership by existing, so its matching fixed column carries an explicit `×` remove button instead.
 
