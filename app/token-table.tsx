@@ -50,8 +50,13 @@ export default function TokenTable({
   // silently stops the sticky header below from ever sticking. clip rounds the corners without one.
   return (
     <section className="overflow-clip rounded-xl border border-edge bg-surface">
+      {/*
+        The empty body is 105px: the desktop header band (41px) plus one row (64px). Removing the
+        last token then lands the copy in the space that row occupied and the footer never moves.
+        The copy is ~48px, and min-height lets it grow when the second line wraps on a narrow phone.
+      */}
       {entries.length === 0 ? (
-        <div className="flex min-h-[320px] flex-col items-center justify-center px-6 text-center">
+        <div className="flex min-h-[105px] flex-col items-center justify-center px-6 py-6 text-center">
           <p className="text-base font-medium text-ink">Start your watchlist</p>
           <p className="mt-1.5 text-sm text-muted">
             Search above by symbol, name, or mint to add your first token.
@@ -59,7 +64,7 @@ export default function TokenTable({
         </div>
       ) : (
         <>
-          <div className="min-h-[320px] min-[640px]:hidden">
+          <div className="min-[640px]:hidden">
             {/*
               The accordion has no header row to click, so the mobile sort is its own band. A
               native select rather than a popup menu: the OS picker is the better target on a
@@ -114,7 +119,7 @@ export default function TokenTable({
             </ul>
           </div>
 
-          <div className="hidden min-h-[320px] min-[640px]:block">
+          <div className="hidden min-[640px]:block">
             <table className="w-full table-fixed text-left">
               {/*
                 Token takes what the fixed columns leave, so each of those is the wider of its
