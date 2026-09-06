@@ -1,5 +1,6 @@
 // Fails the build if a Client Component imports this module.
 import "server-only";
+import { isMintAddress } from "@/app/lib/format";
 import type { OrganicScoreLabel, Token, TokenStats } from "@/app/lib/types";
 
 const ENDPOINT = "https://api.jup.ag/tokens/v2/search";
@@ -10,9 +11,6 @@ const ENDPOINT = "https://api.jup.ag/tokens/v2/search";
 // off the response entirely. Only the free-form path sends this: a mint batch is already
 // bounded by the route's 100-mint cap and returns every mint asked for without it.
 const SEARCH_LIMIT = 50;
-
-// Base58 omits 0, O, I and l. Solana mints are 32-44 characters.
-const BASE58_MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -76,7 +74,7 @@ function toToken(value: unknown): Token | null {
  * out of the table while its mint stayed in storage, so it could never come back.
  */
 function isMintQuery(query: string): boolean {
-  return query.split(",").every((part) => BASE58_MINT.test(part.trim()));
+  return query.split(",").every((part) => isMintAddress(part.trim()));
 }
 
 /**

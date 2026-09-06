@@ -1,10 +1,9 @@
+import { isMintAddress } from "@/app/lib/format";
 import type { Token, WatchEntry } from "@/app/lib/types";
 
-export const SOL_MINT = "So11111111111111111111111111111111111111112";
-
+const SOL_MINT = "So11111111111111111111111111111111111111112";
 const ENTRIES_KEY = "watchlist:tokens";
 const SEEDED_KEY = "watchlist:seeded";
-const BASE58_MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 // Identity only. The icon URL is left null so the first fetch fills it in rather than this
 // file carrying a CDN path that can rot.
@@ -20,7 +19,7 @@ function toEntry(value: unknown): WatchEntry | null {
   if (typeof value !== "object" || value === null) return null;
   const raw = value as Record<string, unknown>;
   // Without a valid mint the row can neither be fetched nor keyed, so it is not a row.
-  if (typeof raw.mint !== "string" || !BASE58_MINT.test(raw.mint)) return null;
+  if (typeof raw.mint !== "string" || !isMintAddress(raw.mint)) return null;
   return {
     mint: raw.mint,
     symbol: typeof raw.symbol === "string" ? raw.symbol : "",

@@ -87,6 +87,18 @@ export function formatMint(mint: string): string {
   return `${mint.slice(0, 4)}...${mint.slice(-4)}`;
 }
 
+// Base58 omits 0, O, I and l. Solana mints are 32-44 characters.
+const BASE58_MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+/**
+ * One definition for every mint check: storage narrowing a stored entry, the route guarding a
+ * batch, `isMintQuery` branching mint-vs-name upstream, and the search row deciding whether the
+ * query is an address. Four copies of the pattern could drift apart silently.
+ */
+export function isMintAddress(value: string): boolean {
+  return BASE58_MINT.test(value);
+}
+
 // Below this, liquidity renders in the danger color: a token nobody can exit is a worse trap
 // than an unverified one. Unknown liquidity is not thin - it is unknown, and reads as a dash.
 const LOW_LIQUIDITY_USD = 10_000;

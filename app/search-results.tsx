@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import StarButton from "@/components/star-button";
 import TokenIcon from "@/components/token-icon";
 import TokenStatus from "@/components/token-status";
-import { formatCompactUsd, formatMint, isThinLiquidity, volume24h } from "@/app/lib/format";
+import { formatCompactUsd, formatMint, isMintAddress, isThinLiquidity, volume24h } from "@/app/lib/format";
 import type { OrganicScoreLabel, Token } from "@/app/lib/types";
 
 export type SearchState =
@@ -12,14 +12,12 @@ export type SearchState =
   | { kind: "ready"; query: string; results: Token[]; stale: boolean }
   | { kind: "error"; message: string };
 
-export type SearchRowItem = { token: Token; exact: boolean };
+type SearchRowItem = { token: Token; exact: boolean };
 
 const PANEL = "flex min-h-0 flex-1 flex-col rounded-md border border-edge bg-ground";
 const CENTERED = `${PANEL} items-center justify-center gap-3 px-6 text-center`;
 const SCROLLER = "min-h-0 flex-1 divide-y divide-edge";
 const SKELETON_ROWS = 5;
-
-const BASE58_MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 const GRID =
   "grid items-center gap-2 grid-cols-[minmax(0,1fr)_44px]" +
@@ -114,7 +112,7 @@ export default function SearchResults({
     );
   }
 
-  const addressQuery = BASE58_MINT.test(state.query);
+  const addressQuery = isMintAddress(state.query);
 
   return (
     <div
@@ -305,6 +303,7 @@ function SearchRow({
                 className="rounded px-0.5 text-muted hover:text-ink focus-visible:text-ink focus-visible:outline-none"
               >
                 {copied ? "✓" : "⧉"}
+                <span className="sr-only" aria-live="polite">{copied ? "Address copied" : ""}</span>
               </button>
             </span>
           </div>

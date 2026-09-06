@@ -42,7 +42,7 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 6. **Timeframe** — 5m / 1h / 6h / 24h across all change columns. No refetch; all four arrive in one response.
 7. **Refresh** — manual button plus "last updated" timestamp.
 
-Built: load, search with animated mobile results, add, remove with undo, refresh, the desktop table, and the redesigned mobile accordion with animated details. Not built yet: sort and the timeframe switch (both layouts are pinned to 24h at `app/token-table.tsx:20`). Update this line as they land.
+Built: load, search with animated mobile results, add, remove with undo, refresh, the desktop table, and the redesigned mobile accordion with animated details. Not built yet: sort and the timeframe switch (both layouts are pinned to 24h by the `TIMEFRAME` const at `app/token-table.tsx:10`, which passes it to both as a prop). Update this line as they land.
 
 ## Settled decisions
 
@@ -52,6 +52,7 @@ Built: load, search with animated mobile results, add, remove with undo, refresh
 - Storage is written only by an add or a remove, never by a fetch. That is what stops a response that was already in flight from resurrecting a row the user just removed.
 - Rows paint from storage on the first commit, with dashes in the numeric columns, and the fetch fills them in. Nothing waits on the network to know what is on the list, so there is no full-page spinner - only the Refresh button's own label and a `Refreshing...` state.
 - The mint is the key everywhere. Symbols collide - `unipcs` returns four tokens whose symbol or name is some arrangement of UNIPCS and BONKGUY - so keying by symbol adds the wrong token and invents duplicates.
+- `isMintAddress` in `app/lib/format.ts` is the only base58 mint check. Storage narrowing, the route's batch guard, `isMintQuery`, and the search row's address reveal all call it; it once existed as four copied regex literals. Never inline a fresh one.
 - A stored mint Jupiter no longer returns keeps its row and its stored name, with dashes for every metric. Dropping it silently would lose a token the user chose.
 - Malformed, absent or half-written storage falls back to an empty list rather than throwing, and duplicate mints are collapsed on the way in. Two tabs are last-write-wins; that is acceptable, crashing is not.
 - SOL is seeded on the first visit only, tracked by that flag rather than by an empty list, so removed SOL stays removed. An empty watchlist is valid and renders the empty view - one line of copy, no header row over nothing.
@@ -78,7 +79,7 @@ Built: load, search with animated mobile results, add, remove with undo, refresh
 
 ### The watchlist row
 
-- `token-table.tsx` has two render paths over one entry list: redesigned accordion cards below 480px and the original desktop table above it. Only one is in the flow at once.
+- `token-table.tsx` picks between two render paths over one entry list: `token-card.tsx` below 480px and `token-row.tsx` above it. Only one is in the flow at once. The parent owns the accordion's `openMint` and the timeframe; the two children own only their own markup.
 - The mobile collapsed row carries an icon, symbol, verified check when applicable, truncated name, stacked price/24h change, and an up/down chevron; the whole row toggles its drawer. The desktop table remains non-accordion.
 - The mobile drawer is visually joined under its row with a left accent rule. Its order is market-cap/liquidity/volume stat grid, wrapping trust/context chips (verification, holders and launchpad where available), then mint/copy/remove utilities. The remove icon is bordered red only and every missing metric reads `—`.
 - The mobile panel expands and collapses over 200ms with the same ease-out rhythm as search, and its content fades and slides with it. It stays rendered but inert and hidden from assistive technology while collapsed.
@@ -115,7 +116,8 @@ This is a small app. Keep it small.
 - Server Components by default; `"use client"` only where interactivity actually needs it.
 - No `useMemo` / `useCallback` without a stated reason.
 - No new abstraction until the same code exists in three places. A focused leaf component that removes duplicated row UI is the exception; no `utils/`, `hooks/`, or generic wrappers for one caller.
-- Page-specific components stay flat in `app/`: `watchlist.tsx` owns state and layout, while `search-results.tsx` and `token-table.tsx` render it. Shared row controls live in `components/`: `star-button.tsx`, `token-icon.tsx`, and `token-status.tsx`. Splitting a file past ~300 lines along a seam that already exists is fine.
+- Page-specific components stay flat in `app/`: `watchlist.tsx` owns membership state and layout, while `search-results.tsx` and `token-table.tsx` render it, the latter delegating to `token-card.tsx` and `token-row.tsx`. Shared row controls live in `components/`: `star-button.tsx`, `token-icon.tsx`, and `token-status.tsx`. Splitting a file past ~300 lines along a seam that already exists is fine.
+- `use-token-search.ts` owns the whole search half - query, debounce, `AbortController`, dismissal, retry, and the arrow/Enter highlight - and takes `onToggle` as its one tie back to membership. It is a deliberate exception to the no-one-caller-wrapper rule: `watchlist.tsx` was running two unrelated state machines in 265 lines, and sort and timeframe still have to land. Don't fold it back in, and don't start a `hooks/` directory - it sits flat in `app/` like everything else.
 - One source of truth for membership: the ordered entry list in `watchlist.tsx`. Live metrics are a separate mint-keyed map that holds no membership. Never a second list, and never an effect syncing two.
 - No tests unless asked. No mocks, fixtures, or scaffolding.
 - Comments for non-obvious logic and short function-level summaries — nullable API fields, Jupiter quirks, an invariant that isn't visible from the code. Don't annotate lines with what they already say.

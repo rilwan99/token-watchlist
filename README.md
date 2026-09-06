@@ -155,10 +155,13 @@ app/
 ├── lib/types.ts         # Token, TokenStats, Timeframe, WatchEntry
 ├── lib/api.ts           # Browser-side client for /api/tokens
 ├── lib/storage.ts       # localStorage: saved identities and the seeded flag
-├── lib/format.ts        # Price, percent, compact USD, count, mint truncation, liquidity threshold, 24h volume
-├── watchlist.tsx        # Client component: the entry list, metrics, keyboard, page layout
+├── lib/format.ts        # Price, percent, compact USD, count, mint truncation and validation, liquidity threshold, 24h volume
+├── watchlist.tsx        # Client component: the entry list, metrics, undo, page layout
+├── use-token-search.ts  # The search state machine: query, debounce, abort, dismissal, keyboard highlight
 ├── search-results.tsx   # The results panel: header, rows, empty and error states
-├── token-table.tsx      # The watchlist: desktop table and mobile accordion drawers
+├── token-table.tsx      # Picks the layout for one entry list and owns the open card
+├── token-card.tsx       # Mobile: the accordion row and its drawer
+├── token-row.tsx        # Desktop: one table row
 ├── page.tsx             # Server component shell
 ├── layout.tsx           # Root layout and metadata
 └── globals.css          # Tailwind import and theme tokens

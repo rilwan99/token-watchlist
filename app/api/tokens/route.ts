@@ -1,7 +1,7 @@
+import { isMintAddress } from "@/app/lib/format";
 import { searchUpstream } from "@/app/lib/tokens";
 
 const MAX_MINTS = 100;
-const BASE58_MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 export async function GET(request: Request) {
   const query = new URL(request.url).searchParams.get("query")?.trim();
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
         { status: 400 },
       );
     }
-    const invalid = parts.find((mint) => !BASE58_MINT.test(mint));
+    const invalid = parts.find((mint) => !isMintAddress(mint));
     if (invalid) {
       return Response.json(
         { error: `Not a valid mint address: ${invalid}` },
