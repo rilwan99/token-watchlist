@@ -49,7 +49,14 @@ export default function TokenRow({
   }
 
   return (
-    <tr className="group transition-colors hover:bg-raised">
+    /*
+      Scoped to background-color, not transition-colors: the row's divider comes from the
+      tbody's divide-y, which only paints :not(:last-child). A row that stops being last
+      gains its 1px border instantly while a colour transition would animate the border
+      from the inherited currentColor down to --color-line - a white line flashing across
+      the table on every add and every sort click.
+    */
+    <tr className="group transition-[background-color] hover:bg-raised">
       <td className="min-w-0 py-[11px] pl-4 pr-3">
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
