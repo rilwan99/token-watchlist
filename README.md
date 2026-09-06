@@ -27,7 +27,7 @@ There is no test script.
 
 ## Status
 
-Built: load from storage, search with animated mobile results, add, remove with undo, manual refresh, the desktop table, the mobile card layout with a Token / Price / 24h header.
+Built: load from storage, search with animated mobile results, add, remove with undo, manual refresh, the desktop table, the mobile card layout with animated details and a Token / Price / 24h header.
 
 Not built yet: sort and the 5m/1h/6h/24h switch (both layouts are pinned to 24h).
 
@@ -95,7 +95,7 @@ Adding uses the token object the search already returned, so the new row arrives
 
 The cards now have the same first-column labels as the desktop table — Token, Price, and 24h — above every non-empty watchlist. They align with the collapsed card values; market cap, liquidity, holders, and removal remain desktop columns or card-panel details rather than making the phone layout wider.
 
-The chevron is on every row, always, even though it's redundant on a row you've already tapped — it's the only thing that says the row does anything at all, and revealing it on interaction would be revealing it to someone who already knows. The panel has no height animation: it renders or it doesn't. An 80ms slide on a tap you just made is latency you're paying to watch.
+The chevron is on every row, always, even though it's redundant on a row you've already tapped — it's the only thing that says the row does anything at all, and revealing it on interaction would be revealing it to someone who already knows. The panel expands and collapses over 200ms with the same ease-out timing as the search results, while its content fades and slides in step. Keeping the panel in the DOM makes that exit possible, so a collapsed panel is inert and hidden from assistive technology rather than leaving its controls in the tab order.
 
 **Price gets a second formatter on the card, and 24h change stops lying about zero.** `formatPrice` on the desktop table spends eighteen characters on `$0.00005545`, which a phone's price column cannot lend it, so `formatPriceCompact` writes that as `$0.0₄5545` — subscript-zero notation, the subscript counting the zeros — and caps every output at nine characters. Two formatters is the deliberate answer: one of them has room and the other doesn't. Separately, a 24h change that rounds to `0.00%` renders neutral gray and drops its sign. A stablecoin sitting at +0.001% is not up, and painting it green says it is.
 

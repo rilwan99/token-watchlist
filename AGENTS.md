@@ -42,7 +42,7 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 6. **Timeframe** — 5m / 1h / 6h / 24h across all change columns. No refetch; all four arrive in one response.
 7. **Refresh** — manual button plus "last updated" timestamp.
 
-Built: load, search with animated mobile results, add, remove with undo, refresh, the mobile card layout with a Token / Price / 24h header. Not built yet: sort and the timeframe switch (both layouts are pinned to 24h at `app/token-table.tsx:20`). Update this line as they land.
+Built: load, search with animated mobile results, add, remove with undo, refresh, the mobile card layout with animated details and a Token / Price / 24h header. Not built yet: sort and the timeframe switch (both layouts are pinned to 24h at `app/token-table.tsx:20`). Update this line as they land.
 
 ## Settled decisions
 
@@ -81,7 +81,7 @@ Built: load, search with animated mobile results, add, remove with undo, refresh
 - `token-table.tsx` holds two render paths over one entry list, swapped at 480px: the table above, cards below. Not one component that widens - the table's Holders column and its hover-revealed `×` have nowhere to go in a 44px card row, and a card that widens into columns turns the desktop rows into tap targets that hide the mint behind an expand.
 - The card is an accordion. The collapsed row carries market state only - icon, symbol, price, 24h - and everything that says what the token *is* moves into the panel: the three remaining metrics, the mint with its copy button, verification, launchpad, and remove. The chevron is on every row, always, because it is the only thing signalling the row is tappable.
 - A mobile-only Token / Price / 24h header sits above non-empty cards, aligned with their collapsed columns; desktop-only metrics remain in the accordion panel.
-- The panel renders or it doesn't; no height animation, and its content is indented 28px to sit under the symbol on `bg-ground`, a step darker than the card's own surface.
+- The panel expands and collapses over 200ms with the same ease-out rhythm as search, and its content fades and slides with it. It stays rendered but inert and hidden from assistive technology while collapsed; its content is indented 28px to sit under the symbol on `bg-ground`, a step darker than the card's own surface.
 - `formatPriceCompact` caps at nine characters using subscript-zero notation ($0.0₄5545); the table keeps `formatPrice` at full precision. Two formatters on purpose - the card's price column has no width to lend.
 - A 24h change that rounds to 0.00% renders neutral and unsigned on the card (`changeTone`): a stablecoin that hasn't moved is not up. The table keeps its older sign-of-the-raw-value rule.
 

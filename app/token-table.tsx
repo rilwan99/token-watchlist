@@ -179,51 +179,63 @@ function TokenCard({
         </svg>
       </button>
 
-      {/* No height animation: the panel is in the DOM or it is not. */}
-      {open ? (
-        <div id={panelId} className="bg-ground pb-3 pl-7 pr-1 pt-2.5 text-[13px]">
-          <dl>
-            <Metric label="Market cap" value={formatCompactUsd(token?.mcap ?? null)} />
-            <Metric
-              label="Liquidity"
-              value={formatCompactUsd(token?.liquidity ?? null)}
-              tone={thin ? "text-down" : "text-ink"}
-            />
-            <Metric
-              label="24h volume"
-              value={formatCompactUsd(token === null ? null : volume24h(token.stats[TIMEFRAME]))}
-            />
-          </dl>
+      <div
+        id={panelId}
+        inert={!open}
+        aria-hidden={!open}
+        className={`grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="min-h-0">
+          <div
+            className={`bg-ground pb-3 pl-7 pr-1 pt-2.5 text-[13px] transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ${
+              open ? "translate-y-0 opacity-100" : "-translate-y-2 opacity-0"
+            }`}
+          >
+            <dl>
+              <Metric label="Market cap" value={formatCompactUsd(token?.mcap ?? null)} />
+              <Metric
+                label="Liquidity"
+                value={formatCompactUsd(token?.liquidity ?? null)}
+                tone={thin ? "text-down" : "text-ink"}
+              />
+              <Metric
+                label="24h volume"
+                value={formatCompactUsd(token === null ? null : volume24h(token.stats[TIMEFRAME]))}
+              />
+            </dl>
 
-          <div className="mt-2.5 border-t border-edge">
+            <div className="mt-2.5 border-t border-edge">
+              <button
+                type="button"
+                onClick={handleCopy}
+                aria-label={`Copy the ${symbol} mint address`}
+                className="inline-flex min-h-11 items-center gap-2 rounded text-muted transition-colors hover:text-ink focus-visible:text-ink focus-visible:outline-none"
+              >
+                <span className="font-mono">{formatMint(entry.mint)}</span>
+                <span className="text-xs">{copied ? "Copied" : "⧉"}</span>
+              </button>
+              {/* Absent metrics mean Jupiter no longer returns the mint, and unknown
+                  verification is not the same claim as unverified. */}
+              {token === null ? null : (
+                <p className="text-xs text-muted">
+                  {token.isVerified ? "Verified" : "Unverified"}
+                  {token.launchpad === null ? "" : ` · ${token.launchpad}`}
+                </p>
+              )}
+            </div>
+
             <button
               type="button"
-              onClick={handleCopy}
-              aria-label={`Copy the ${symbol} mint address`}
-              className="inline-flex min-h-11 items-center gap-2 rounded text-muted transition-colors hover:text-ink focus-visible:text-ink focus-visible:outline-none"
+              onClick={onRemove}
+              className="mt-1 inline-flex min-h-11 items-center rounded font-medium text-down transition-opacity active:opacity-60 focus-visible:outline-none focus-visible:underline"
             >
-              <span className="font-mono">{formatMint(entry.mint)}</span>
-              <span className="text-xs">{copied ? "Copied" : "⧉"}</span>
+              Remove from watchlist
             </button>
-            {/* Absent metrics mean Jupiter no longer returns the mint, and unknown
-                verification is not the same claim as unverified. */}
-            {token === null ? null : (
-              <p className="text-xs text-muted">
-                {token.isVerified ? "Verified" : "Unverified"}
-                {token.launchpad === null ? "" : ` · ${token.launchpad}`}
-              </p>
-            )}
           </div>
-
-          <button
-            type="button"
-            onClick={onRemove}
-            className="mt-1 inline-flex min-h-11 items-center rounded font-medium text-down transition-opacity active:opacity-60 focus-visible:outline-none focus-visible:underline"
-          >
-            Remove from watchlist
-          </button>
         </div>
-      ) : null}
+      </div>
     </li>
   );
 }
