@@ -42,7 +42,7 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 6. **Timeframe** — 5m / 1h / 6h / 24h across all change columns. No refetch; all four arrive in one response.
 7. **Refresh** — manual button plus "last updated" timestamp.
 
-Built: load, search, add, remove with undo, refresh. Not built yet: sort, the timeframe switch (the table is pinned to 24h at `app/token-table.tsx:14`), and the mobile card layout. Update this line as they land.
+Built: load, search, add, remove with undo, refresh, the mobile card layout. Not built yet: sort and the timeframe switch (both layouts are pinned to 24h at `app/token-table.tsx:20`). Update this line as they land.
 
 ## Settled decisions
 
@@ -60,6 +60,7 @@ Built: load, search, add, remove with undo, refresh. Not built yet: sort, the ti
 - One anonymous user, one watchlist, one device. Solana only. Soft cap ~50 tokens, under the 100-mint batch limit.
 - Sort and timeframe are session state, not persisted.
 - Desktop table, mobile cards. Same data and flows; both primary.
+- Accordion state is session state too, and only one card is open at a time.
 
 ### The search slot
 
@@ -73,6 +74,14 @@ Built: load, search, add, remove with undo, refresh. Not built yet: sort, the ti
 - Escape is handled on the search wrapper, not the input, so it reaches the panel's tab stops too. Those go `inert` on close, so dismissing must return focus to the input. Escape empties the field, which closes the panel through `open`. An outside click dismisses without clearing, and the next keystroke reopens.
 - Arrow up/down move a highlight through `arrange`'s order, wrapping at both ends, and Enter toggles the highlighted row's star without closing the panel. The highlight starts at nothing, so Enter on a fresh search adds nothing. Pointer and keyboard share it: `mouseenter` moves the index, so the two never disagree about which row Enter means. `arrange` is exported for this - the key handler lives on the wrapper with the input, and both sides have to agree on what row 3 is.
 - The results header is a sticky row inside the scroll container — outside it, the scrollbar drops every value ~15px left of its label.
+
+### The watchlist row
+
+- `token-table.tsx` holds two render paths over one entry list, swapped at 480px: the table above, cards below. Not one component that widens - the table's Holders column and its hover-revealed `×` have nowhere to go in a 44px card row, and a card that widens into columns turns the desktop rows into tap targets that hide the mint behind an expand.
+- The card is an accordion. The collapsed row carries market state only - icon, symbol, price, 24h - and everything that says what the token *is* moves into the panel: the three remaining metrics, the mint with its copy button, verification, launchpad, and remove. The chevron is on every row, always, because it is the only thing signalling the row is tappable.
+- The panel renders or it doesn't; no height animation, and its content is indented 28px to sit under the symbol on `bg-ground`, a step darker than the card's own surface.
+- `formatPriceCompact` caps at nine characters using subscript-zero notation ($0.0₄5545); the table keeps `formatPrice` at full precision. Two formatters on purpose - the card's price column has no width to lend.
+- A 24h change that rounds to 0.00% renders neutral and unsigned on the card (`changeTone`): a stablecoin that hasn't moved is not up. The table keeps its older sign-of-the-raw-value rule.
 
 ### Result rows
 

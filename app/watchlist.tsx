@@ -247,9 +247,12 @@ export default function Watchlist() {
       </div>
 
       {entries === null ? null : entries.length === 0 ? (
-        <p className="py-12 text-center text-sm text-muted">
-          Your watchlist is empty. Search above to add a token.
-        </p>
+        <div className="py-12 text-center">
+          <p className="text-base font-medium text-ink">Start your watchlist</p>
+          <p className="mt-1.5 text-sm text-muted">
+            Search above by symbol, name, or mint to add your first token.
+          </p>
+        </div>
       ) : (
         <TokenTable entries={entries} metrics={metrics} onRemove={remove} />
       )}

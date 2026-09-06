@@ -27,9 +27,9 @@ There is no test script.
 
 ## Status
 
-Built: load from storage, search, add, remove with undo, manual refresh, the desktop table.
+Built: load from storage, search, add, remove with undo, manual refresh, the desktop table, the mobile card layout.
 
-Not built yet: sort, the 5m/1h/6h/24h switch (the table is pinned to 24h), and the mobile card layout.
+Not built yet: sort and the 5m/1h/6h/24h switch (both layouts are pinned to 24h).
 
 ## Decisions
 
@@ -84,6 +84,12 @@ Adding uses the token object the search already returned, so the new row arrives
 **Arrow keys move a highlight; Enter toggles it.** Up and down walk the results and wrap at both ends, Enter stars the highlighted row and leaves the panel open, Escape empties the field, which closes the panel and returns focus to the input. The highlight starts on nothing, so Enter on a fresh search does nothing rather than adding whatever happened to rank first. The pointer moves the same index on `mouseenter`, so hovering row 7 and pressing Enter can never toggle row 3.
 
 **Unverified and illiquid tokens are addable, and they carry their warnings with them.** Blocking them would be the wrong call — a thin unverified token is exactly the kind of thing a watchlist is for, and the row's job is to say what a token is, not to decide. So the `?` glyph, the launchpad tag, the dimmed icon and the danger-colored liquidity all follow the token into the watchlist row, where it's actually looked at from then on. They render only when the live token is in hand: for a row painted from storage alone, verification is unknown, and a `?` would be a stronger claim than the app can make.
+
+**Below 480px the table becomes an accordion, and it is a second layout rather than the same one narrowed.** Seven columns do not fit a phone, and the usual fixes both fail: a horizontal scroll hides the numbers people came for, and stacking every field into the row makes a 44px target into a paragraph. So the collapsed card carries market state only — icon, symbol, price, 24h change — and tapping it opens a panel with the rest. Market cap, liquidity and volume are one block; the mint, verification and launchpad are a second; removal is a text button at the bottom. What a token is *worth* is the row, what it *is* is the panel, and that split holds at both sizes. It's an accordion because two panels open at once on a phone screen means the second one pushes the first off the top; one at a time, never persisted, so a reload starts collapsed.
+
+The chevron is on every row, always, even though it's redundant on a row you've already tapped — it's the only thing that says the row does anything at all, and revealing it on interaction would be revealing it to someone who already knows. The panel has no height animation: it renders or it doesn't. An 80ms slide on a tap you just made is latency you're paying to watch.
+
+**Price gets a second formatter on the card, and 24h change stops lying about zero.** `formatPrice` on the desktop table spends eighteen characters on `$0.00005545`, which a phone's price column cannot lend it, so `formatPriceCompact` writes that as `$0.0₄5545` — subscript-zero notation, the subscript counting the zeros — and caps every output at nine characters. Two formatters is the deliberate answer: one of them has room and the other doesn't. Separately, a 24h change that rounds to `0.00%` renders neutral gray and drops its sign. A stablecoin sitting at +0.001% is not up, and painting it green says it is.
 
 **The API key never reaches the browser.** The route handler at `GET /api/tokens` is the only thing that talks to Jupiter (`server-only` is imported in `app/lib/tokens.ts` to enforce that at build time). It also validates mint batches — base58 shape, 100 maximum — so a malformed request fails locally instead of burning an upstream call.
 
@@ -141,10 +147,10 @@ app/
 ├── lib/types.ts         # Token, TokenStats, Timeframe, WatchEntry
 ├── lib/api.ts           # Browser-side client for /api/tokens
 ├── lib/storage.ts       # localStorage: saved identities and the seeded flag
-├── lib/format.ts        # Price, percent, compact USD, count, mint truncation, liquidity threshold
+├── lib/format.ts        # Price, percent, compact USD, count, mint truncation, liquidity threshold, 24h volume
 ├── watchlist.tsx        # Client component: the entry list, metrics, keyboard, page layout
 ├── search-results.tsx   # The results panel: header, rows, empty and error states
-├── token-table.tsx      # The watchlist table
+├── token-table.tsx      # The watchlist: desktop table and mobile accordion cards
 ├── page.tsx             # Server component shell
 ├── layout.tsx           # Root layout and metadata
 └── globals.css          # Tailwind import and theme tokens
