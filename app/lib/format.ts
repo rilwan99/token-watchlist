@@ -1,4 +1,4 @@
-const DASH = "-";
+const DASH = "—";
 
 function isNumber(value: number | null): value is number {
   return value !== null && Number.isFinite(value);
@@ -11,10 +11,14 @@ export function formatPrice(value: number | null): string {
   return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits })}`;
 }
 
-/** Market cap, liquidity, volume: "$60.03B". */
+/**
+ * Market cap, liquidity, volume: "$73.2B", "$402K", "$233". Three significant figures
+ * rather than two decimals, so every cell caps at five characters and the right-aligned
+ * column edge holds instead of shifting between "$464.1M" and "$412.07M".
+ */
 export function formatCompactUsd(value: number | null): string {
   if (!isNumber(value)) return DASH;
-  return `$${value.toLocaleString("en-US", { notation: "compact", maximumFractionDigits: 2 })}`;
+  return `$${value.toLocaleString("en-US", { notation: "compact", maximumSignificantDigits: 3 })}`;
 }
 
 /** Jupiter already returns percent units, so no x100. */

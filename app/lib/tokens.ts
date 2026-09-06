@@ -1,6 +1,6 @@
 // Fails the build if a Client Component imports this module.
 import "server-only";
-import type { Token, TokenStats } from "@/app/lib/types";
+import type { OrganicScoreLabel, Token, TokenStats } from "@/app/lib/types";
 
 const ENDPOINT = "https://api.jup.ag/tokens/v2/search";
 
@@ -14,6 +14,10 @@ function asNumber(value: unknown): number | null {
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value !== "" ? value : null;
+}
+
+function asOrganicScoreLabel(value: unknown): OrganicScoreLabel | null {
+  return value === "high" || value === "medium" || value === "low" ? value : null;
 }
 
 function toStats(value: unknown): TokenStats {
@@ -37,8 +41,11 @@ function toToken(value: unknown): Token | null {
     name: asString(value.name) ?? symbol ?? id,
     symbol: symbol ?? "",
     icon: asString(value.icon),
+    // Jupiter sends null, not false, for an unverified token.
     isVerified: value.isVerified === true,
+    launchpad: asString(value.launchpad),
     organicScore: asNumber(value.organicScore),
+    organicScoreLabel: asOrganicScoreLabel(value.organicScoreLabel),
     usdPrice: asNumber(value.usdPrice),
     mcap: asNumber(value.mcap),
     liquidity: asNumber(value.liquidity),

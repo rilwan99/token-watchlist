@@ -3,28 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWatchlist, searchTokens } from "@/app/lib/api";
 import { loadMints } from "@/app/lib/storage";
-import {
-  formatCompactUsd,
-  formatCount,
-  formatMint,
-  formatPercent,
-  formatPrice,
-} from "@/app/lib/format";
-import type { Timeframe, Token } from "@/app/lib/types";
+import SearchResults, { MIN_QUERY, type SearchState } from "@/app/search-results";
+import TokenTable from "@/app/token-table";
+import type { Token } from "@/app/lib/types";
 
-const TIMEFRAME: Timeframe = "24h";
 const DEBOUNCE_MS = 250;
-const MIN_QUERY = 2;
 
 type Status = "loading" | "ready" | "error";
-
-// A union rather than parallel useStates: results and an error can never render together.
-// `stale` marks results still on screen while a newer query is in flight.
-type SearchState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "ready"; results: Token[]; stale: boolean }
-  | { kind: "error"; message: string };
 
 export default function Watchlist() {
   const [tokens, setTokens] = useState<Token[]>([]);
@@ -131,10 +116,10 @@ export default function Watchlist() {
             not again as results arrive or change count. */}
         <div
           className={`overflow-hidden transition-[height] duration-200 ease-out ${
-            open ? "h-84" : "h-0"
+            open ? "h-104" : "h-0"
           }`}
         >
-          <SearchResults state={visibleSearch} />
+          <SearchResults state={visibleSearch} query={query} />
         </div>
       </div>
 
@@ -165,151 +150,6 @@ export default function Watchlist() {
       ) : (
         <TokenTable tokens={tokens} />
       )}
-    </div>
-  );
-}
-
-// In normal flow inside the slot above, not floating: the slot already reserves the space.
-const PANEL = "mt-1 rounded-md border border-edge bg-ground";
-
-// Renders the search states. Idle is a hint rather than nothing, so focusing the input
-// doesn't open an empty void.
-function SearchResults({ state }: { state: SearchState }) {
-  if (state.kind === "idle") {
-    return (
-      <p className={`${PANEL} px-3 py-2 text-sm text-muted`}>
-        Type at least {MIN_QUERY} characters to search by symbol, name, or mint.
-      </p>
-    );
-  }
-
-  if (state.kind === "loading") {
-    return (
-      <p role="status" className={`${PANEL} px-3 py-2 text-sm text-muted`}>
-        Searching...
-      </p>
-    );
-  }
-
-  if (state.kind === "error") {
-    return (
-      <p role="status" className={`${PANEL} px-3 py-2 text-sm text-down`}>
-        {state.message}
-      </p>
-    );
-  }
-
-  if (state.results.length === 0) {
-    return (
-      <p role="status" className={`${PANEL} px-3 py-2 text-sm text-muted`}>
-        No tokens matched that search.
-      </p>
-    );
-  }
-
-  return (
-    <ul
-      className={`${PANEL} max-h-80 divide-y divide-edge overflow-y-auto transition-opacity ${
-        state.stale ? "opacity-50" : "opacity-100"
-      }`}
-    >
-      {state.results.map((token) => (
-        <SearchRow key={token.id} token={token} />
-      ))}
-    </ul>
-  );
-}
-
-// Same-symbol impersonators are the failure mode this list has to guard against, so an
-// unverified token is rendered recessive: dimmed icon, muted symbol, an explicit label.
-function SearchRow({ token }: { token: Token }) {
-  return (
-    <li className="flex items-center gap-3 px-3 py-2 text-sm">
-      {token.icon === null ? null : (
-        // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote hosts
-        <img
-          src={token.icon}
-          alt=""
-          className={`size-6 shrink-0 rounded-full ${token.isVerified ? "" : "opacity-40"}`}
-        />
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className={token.isVerified ? "font-medium text-ink" : "text-muted"}>
-            {token.symbol}
-          </span>
-          {token.isVerified ? (
-            <span className="text-xs text-up" title="Verified">✓</span>
-          ) : (
-            <span className="rounded border border-edge px-1 text-[10px] uppercase tracking-wide text-muted">
-              unverified
-            </span>
-          )}
-          <span className="truncate text-muted">{token.name}</span>
-        </div>
-        <div className="flex gap-3 text-xs text-muted">
-          <span className="tabular-nums">{formatMint(token.id)}</span>
-          <span>Liq {formatCompactUsd(token.liquidity)}</span>
-          <span>
-            Organic {token.organicScore === null ? "-" : Math.round(token.organicScore)}
-          </span>
-        </div>
-      </div>
-    </li>
-  );
-}
-
-function TokenTable({ tokens }: { tokens: Token[] }) {
-  return (
-    <div className="w-full overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-edge text-xs uppercase tracking-wide text-muted">
-          <tr>
-            <th scope="col" className="py-3 pr-4 font-medium">Token</th>
-            <th scope="col" className="py-3 pr-4 text-right font-medium">Price</th>
-            <th scope="col" className="py-3 pr-4 text-right font-medium">{TIMEFRAME}</th>
-            <th scope="col" className="py-3 pr-4 text-right font-medium">Market cap</th>
-            <th scope="col" className="py-3 pr-4 text-right font-medium">Liquidity</th>
-            <th scope="col" className="py-3 text-right font-medium">Holders</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-edge">
-          {tokens.map((token) => {
-            const change = token.stats[TIMEFRAME].priceChange;
-            const changeColor =
-              change === null ? "text-muted" : change < 0 ? "text-down" : "text-up";
-            return (
-              <tr key={token.id}>
-                <td className="py-3 pr-4">
-                  <div className="flex items-center gap-2">
-                    {token.icon === null ? null : (
-                      // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote hosts
-                      <img src={token.icon} alt="" className="size-5 rounded-full" />
-                    )}
-                    <span className="font-medium text-ink">{token.symbol}</span>
-                    <span className="text-muted">{token.name}</span>
-                  </div>
-                </td>
-                <td className="py-3 pr-4 text-right tabular-nums text-ink">
-                  {formatPrice(token.usdPrice)}
-                </td>
-                <td className={`py-3 pr-4 text-right tabular-nums ${changeColor}`}>
-                  {formatPercent(change)}
-                </td>
-                <td className="py-3 pr-4 text-right tabular-nums text-muted">
-                  {formatCompactUsd(token.mcap)}
-                </td>
-                <td className="py-3 pr-4 text-right tabular-nums text-muted">
-                  {formatCompactUsd(token.liquidity)}
-                </td>
-                <td className="py-3 text-right tabular-nums text-muted">
-                  {formatCount(token.holderCount)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </div>
   );
 }

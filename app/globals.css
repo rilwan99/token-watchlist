@@ -13,6 +13,9 @@
   --color-muted: #8a94a6;
   --color-up: #3fd68c;
   --color-down: #ff6b6b;
+  /* Selection, not direction: --color-up is the green for price gains and would misread
+     as "this token went up" on the pinned exact match. */
+  --color-accent: #4c8dff;
 }
 
 :root {

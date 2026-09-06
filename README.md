@@ -45,11 +45,17 @@ The interesting parts of this app are the choices, not the code. Each one below 
 
 **Search results open a slot; they never cover the watchlist and never move it mid-search.** Two constraints pull against each other here. Pushing the table down as results arrive means the row you were reaching for slides out from under the cursor. Floating a panel over the table fixes that, but a short watchlist then sits entirely behind the results — and checking what you already hold is the whole reason it's on screen. So the results live in normal flow, in a slot that opens when you focus the input and collapses when you dismiss. The page moves exactly once, on your click, before any results exist; the slot's height is fixed while open, so going from three matches to twenty resizes nothing. Search is debounced 250ms with a 2-character minimum and an `AbortController` that cancels superseded requests, so the last thing typed is always the thing rendered. Previous results stay on screen dimmed while a newer query is in flight — only the very first query shows "Searching...".
 
-**Jupiter's result ordering is kept as-is; impersonators are handled visually.** Re-sorting results by liquidity or market cap buries exact symbol matches, and Jupiter's ordering already weighs organic score. The real risk isn't bad ranking, it's adding the wrong token with the right symbol — a legibility problem. So each row carries a verified check or an explicit `UNVERIFIED` pill, a truncated mint, liquidity, and organic score, and unverified rows are rendered recessive: muted symbol, 40%-opacity icon.
+**Search results are grouped, never re-sorted or filtered.** The risk here isn't bad ranking, it's adding the wrong token with the right symbol. Searching `BONK` returns a token whose symbol is `BONKGUY` and whose name is `UNIPCS`, alongside another whose symbol is `UNIPCS` and whose name is `bonkguy was right` — the names and symbols are deliberately shuffled, so neither field can be trusted to tell them apart. What separates them is money: $293M of liquidity against $787.
+
+So the row is built around that comparison. Identity sits left; market cap, 24h volume, liquidity and organic score are right-aligned in fixed columns with tabular figures, formatted to three significant figures so every cell caps at five characters and the column edge holds. A vertical rule splits the four into two groups: market cap and volume are comparison values you read against each other, liquidity and organic are threshold values you check against a bar. Units live in one sticky header rather than repeating "Liq" on every line — and that header sits *inside* the scroll container, because outside it the scrollbar narrows the rows and drops every value 15px left of its own label.
+
+Ordering is still Jupiter's, which already weighs organic score. But the first exact symbol match is pinned to the top with an accent border and an `Exact` tag, and rows that are unverified or below $10K of liquidity fall under a labelled divider. They are demoted, never hidden — the pin is what keeps the split from burying the token you actually typed. Unverified rows read recessive: muted symbol, dimmed icon, and their launchpad shown as a tag. That comes from Jupiter's `launchpad` field, not from sniffing the mint suffix, which lies in both directions — a `…bonk` suffix appears on verified letsbonk.fun launches, and plenty of pump.fun tokens carry no suffix at all.
+
+**The mint address is on the row, but not in the way.** It's the only field that identifies a token beyond doubt and the least scannable thing you could put in a list, so it stays off the default row and replaces the name line on hover or keyboard focus, in mono, with a copy button. The two layers swap by opacity rather than `display`, because a `display: none` button can't be tabbed to — reaching that button is what reveals the address, and it's the row's only tab stop. Paste a mint into the search box and every row shows its address without waiting for a hover. There's no partial-address matching to support: Jupiter matches a mint only in full, so a partial one returns nothing at all.
 
 **The API key never reaches the browser.** The route handler at `GET /api/tokens` is the only thing that talks to Jupiter, and it holds `JUPITER_API_KEY` server-side (`server-only` is imported in `app/lib/tokens.ts` to enforce that at build time). It also validates mint batches — base58 shape, 100 maximum — so a malformed request fails locally instead of burning an upstream call.
 
-**Every number from upstream is nullable.** Jupiter omits price, market cap, liquidity, and holder count for thin or new tokens. Those fields are normalized to `null` on the way in and rendered as a dash. `NaN` and `undefined` never reach the DOM.
+**Every number from upstream is nullable.** Jupiter omits price, market cap, liquidity, and holder count for thin or new tokens, and reports `isVerified` as `null` rather than `false`. Those fields are normalized on the way in and rendered as an em dash — never `$0`, which on a search row would read as a real zero-liquidity signal. `NaN` and `undefined` never reach the DOM. There is no total volume field either: 24h volume is buy plus sell, and since a token can legitimately have buys and no sells, only a missing pair reads as unknown.
 
 Out of scope: trading, wallet connection, charts, alerts, multiple watchlists, export, accounts, sync, and server-side persistence. One anonymous user, one watchlist, one device.
 
@@ -76,7 +82,9 @@ It responds with `{ "tokens": [...] }`, or `{ "error": "..." }` with a 400 (bad 
   "symbol": "SOL",
   "icon": "<url or null>",
   "isVerified": true,
+  "launchpad": "<pump.fun, letsbonk.fun, or null>",
   "organicScore": 100,
+  "organicScoreLabel": "high",
   "usdPrice": 148.72,
   "mcap": 68900000000,
   "liquidity": 123000000,
@@ -102,7 +110,9 @@ app/
 ├── lib/api.ts           # Browser-side client for /api/tokens
 ├── lib/storage.ts       # localStorage: mint list and the seeded flag
 ├── lib/format.ts        # Price, percent, compact USD, count, mint truncation
-├── watchlist.tsx        # The client component: search, table, refresh
+├── watchlist.tsx        # Client component: state, effects, page layout
+├── search-results.tsx   # The results panel: header, grouping, result rows
+├── token-table.tsx      # The watchlist table
 ├── page.tsx             # Server component shell
 ├── layout.tsx           # Root layout and metadata
 └── globals.css          # Tailwind import and theme tokens

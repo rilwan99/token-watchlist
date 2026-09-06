@@ -27,20 +27,24 @@ Jupiter Tokens API V2: `GET https://api.jup.ag/tokens/v2/search?query={query}`, 
 - `query` takes a symbol, name, or mint.
 - Comma-separated mints return in one response, max 100. This is how the watchlist loads.
 - Symbol/name search returns 20 results by default.
+- A mint matches only in full. A partial address returns zero results, so there is no partial-address state to render.
+- `isVerified` is `null`, not `false`, on unverified tokens.
+- There is no total volume field. 24h volume is `stats24h.buyVolume + stats24h.sellVolume`, and one side can be null on its own.
+- `launchpad` ("pump.fun", "letsbonk.fun", null) and `organicScoreLabel` ("high" / "medium" / "low") are first-class fields. Never infer either — mint suffixes lie in both directions.
 
 The fields used are typed in `app/lib/types.ts` and normalized in `app/lib/tokens.ts`. Nearly every one is nullable upstream — normalize to `null` on the way in, render a dash, never `NaN` or `undefined`.
 
 ## Flows
 
 1. **Load** — rehydrate mints from storage, one batch request, render.
-2. **Search** — by symbol, name, or mint. Debounced as-you-type into a floating panel. Results show verified badge, organic score, liquidity, truncated mint, so same-symbol tokens are distinguishable.
+2. **Search** — by symbol, name, or mint. Debounced as-you-type into the results slot. Each row is a grid: identity, market cap, 24h volume, a rule, liquidity, organic. Units live in one header row, not repeated per line.
 3. **Add** — from the result row; row flips to added state; duplicates blocked.
 4. **Remove** — one click, no confirmation.
 5. **Sort** — client-side on price change, market cap, liquidity, volume, holders.
 6. **Timeframe** — 5m / 1h / 6h / 24h across all change columns. No refetch; all four windows arrive in the same response.
 7. **Refresh** — manual button plus "last updated" timestamp.
 
-This list is the target, not the current state. Built: load, search, refresh. Not built yet: add, remove, sort, the timeframe switch (the table is pinned to 24h at `app/watchlist.tsx:15`), and the mobile card layout. Update this line as they land.
+This list is the target, not the current state. Built: load, search, refresh. Not built yet: add, remove, sort, the timeframe switch (the table is pinned to 24h at `app/token-table.tsx:9`), and the mobile card layout. Update this line as they land.
 
 ## Settled decisions
 
@@ -49,9 +53,15 @@ This list is the target, not the current state. Built: load, search, refresh. No
 - One anonymous user, one watchlist, one device. No accounts, no sync, no server-side persistence.
 - Snapshot at load, not a live feed. No polling.
 - Spinner while loading. Sort and timeframe are session state, not persisted.
-- Search results occupy a slot in normal flow that opens on input focus and collapses on dismiss, fixed height while open. Two hard constraints, both failed once already: results must never cover the watchlist, and the page must not move as results arrive or change count. The one permitted shift is the slot opening, tied to the user's click.
+- Search results occupy a slot in normal flow that opens on input focus and collapses on dismiss, fixed height while open. Two hard constraints, both failed once already: results must never cover the watchlist, and the page must not move as results arrive or change count. The one permitted shift is the slot opening, tied to the user's click. The slot is 416px — about seven rows. Growing it to fit all twenty pushes the table off the fold, which is the failure the constraints exist to prevent.
+- The results header lives inside the scroll container as a sticky row, not above it. Outside, the scrollbar narrows the rows and every value lands ~15px left of its own label.
 - Search fires as-you-type: 250ms debounce, 2-character minimum, `AbortController` cancelling superseded requests. No submit button. Previous results stay on screen dimmed while a newer query is in flight; only the first query shows "Searching...".
-- Jupiter's result ordering is kept as-is — it already weighs organic score, and re-sorting buries exact symbol matches. Impersonators are handled by visual hierarchy instead: unverified rows get a muted symbol, a 40%-opacity icon, and an explicit UNVERIFIED pill.
+- Search results are grouped, never re-sorted or filtered: the first exact symbol match pins to the top with an accent border and an `Exact` tag, then trusted rows in Jupiter's order, then everything else under an "Unverified · low liquidity" divider. Trusted means verified **and** liquidity at or above `LOW_LIQUIDITY_USD` ($10K); unknown liquidity counts as thin. Jupiter's ordering inside each group is left alone — it already weighs organic score, and the pin is what stops the split burying the token actually typed.
+- Two number groups, split by a vertical rule: market cap and volume are read against each other in primary ink; liquidity and organic are checked against a threshold in secondary. Liquidity turns `text-down` below the threshold.
+- Unverified rows read recessive: muted symbol, 40%-opacity icon, launchpad tag. No pill — the verified check sits in a fixed-width slot so nothing after it shifts between rows.
+- The mint is not on the row by default. Hover or keyboard focus swaps the name line for the truncated address plus a copy button. The swap is opacity, not `display`, because the button has to stay in the tab order — reaching it is what reveals the address, and it is the row's only tab stop.
+- A base58 query (32-44 chars) shows the address in place of the name on every row, no hover needed.
+- `formatCompactUsd` is three significant figures so every cell caps at five characters and the right-aligned column edge holds. Missing values render as an em dash, never `$0`.
 - The panel stays open after an add, so several tokens can be added in one pass. The row itself flips to an added state — that per-row feedback is load-bearing, because a short watchlist sits entirely behind the panel.
 - Soft cap ~50 tokens, under the 100-mint batch limit.
 - Solana only.
@@ -69,6 +79,7 @@ This is a small app. Keep it small.
 - Server Components by default; `"use client"` only where interactivity actually needs it.
 - No `useMemo` / `useCallback` without a stated reason.
 - No new abstraction until the same code exists in three places. No `utils/`, `hooks/`, or generic wrappers for one caller.
+- Components sit flat in `app/`, one file each: `watchlist.tsx` owns state and layout, `search-results.tsx` and `token-table.tsx` render. Splitting a file that has grown past ~300 lines along a seam that already exists is fine; inventing a `components/` directory, shared prop types, or a wrapper to hold them is not.
 - No tests unless asked. No mocks, fixtures, or scaffolding.
 - Comments for non-obvious logic and short function-level summaries — nullable API fields, Jupiter quirks, an invariant that isn't visible from the code. Don't annotate individual lines with what they already say.
 - No new dependencies without saying why one is needed.
