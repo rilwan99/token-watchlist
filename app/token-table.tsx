@@ -23,8 +23,10 @@ export default function TokenTable({
     onRemove(mint);
   }
 
+  // overflow-clip, not overflow-hidden: hidden would make the card a scroll container, which
+  // silently stops the sticky header below from ever sticking. clip rounds the corners without one.
   return (
-    <section className="overflow-hidden rounded-xl border border-edge bg-surface">
+    <section className="overflow-clip rounded-xl border border-edge bg-surface">
       {entries.length === 0 ? (
         <div className="flex min-h-[320px] flex-col items-center justify-center px-6 text-center">
           <p className="text-base font-medium text-ink">Start your watchlist</p>
@@ -68,7 +70,11 @@ export default function TokenTable({
                 <col className="w-[64px]" />
                 <col className="w-[32px]" />
               </colgroup>
-              <thead className="whitespace-nowrap border-b border-edge bg-raised text-[11px] text-faint">
+              {/*
+                Sticky because the units live in these labels and nowhere else, and a watchlist
+                longer than about nine rows scrolls them off the top of a laptop viewport.
+              */}
+              <thead className="sticky top-0 z-10 whitespace-nowrap border-b border-edge bg-raised text-[11px] text-faint">
                 <tr>
                   <th scope="col" className="py-3 pl-4 pr-3 font-medium">Token</th>
                   <th scope="col" className="px-3 py-3 text-right font-medium">Price</th>
