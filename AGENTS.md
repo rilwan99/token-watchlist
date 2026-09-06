@@ -100,8 +100,8 @@ This is a small app. Keep it small.
 - A one-line request ("add a search bar") names a mechanism, not a behavior. Unspecified is not unambiguous — absent behavior is a question to ask, not a gap to fill with the nearest default. Shipping the literal reading is how the search panel got built inline and shoved the watchlist 344px down the page.
 - Server Components by default; `"use client"` only where interactivity actually needs it.
 - No `useMemo` / `useCallback` without a stated reason.
-- No new abstraction until the same code exists in three places. No `utils/`, `hooks/`, or generic wrappers for one caller.
-- Components sit flat in `app/`, one file each: `watchlist.tsx` owns state and layout, `search-results.tsx` and `token-table.tsx` render, and `star-button.tsx` and `token-icon.tsx` are the two controls both of those rows need. Splitting a file past ~300 lines along a seam that already exists is fine; inventing a `components/` directory or shared prop types to hold them is not.
+- No new abstraction until the same code exists in three places. A focused leaf component that removes duplicated row UI is the exception; no `utils/`, `hooks/`, or generic wrappers for one caller.
+- Page-specific components stay flat in `app/`: `watchlist.tsx` owns state and layout, while `search-results.tsx` and `token-table.tsx` render it. Shared row controls live in `components/`: `star-button.tsx`, `token-icon.tsx`, and `token-status.tsx`. Splitting a file past ~300 lines along a seam that already exists is fine.
 - One source of truth for membership: the ordered entry list in `watchlist.tsx`. Live metrics are a separate mint-keyed map that holds no membership. Never a second list, and never an effect syncing two.
 - No tests unless asked. No mocks, fixtures, or scaffolding.
 - Comments for non-obvious logic and short function-level summaries — nullable API fields, Jupiter quirks, an invariant that isn't visible from the code. Don't annotate lines with what they already say.

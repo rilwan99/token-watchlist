@@ -145,11 +145,14 @@ app/
 ├── watchlist.tsx        # Client component: the entry list, metrics, keyboard, page layout
 ├── search-results.tsx   # The results panel: header, rows, empty and error states
 ├── token-table.tsx      # The watchlist table
-├── star-button.tsx      # The add/remove toggle both row types use
-├── token-icon.tsx       # Token icon with a fallback for missing and broken URLs
 ├── page.tsx             # Server component shell
 ├── layout.tsx           # Root layout and metadata
 └── globals.css          # Tailwind import and theme tokens
+
+components/
+├── star-button.tsx       # The add/remove toggle both row types use
+├── token-icon.tsx        # Token icon with a fallback for missing and broken URLs
+└── token-status.tsx      # Shared verified/unverified marker and launchpad tag
 ```
 
 `AGENTS.md` is the working contract for coding agents in this repo — the same decisions stated as constraints, plus conventions and verification rules.
