@@ -30,8 +30,8 @@ const SCROLLER = "min-h-0 flex-1 divide-y divide-edge";
 // scrolling result list does.
 const SKELETON_ROWS = 8;
 
-// Below this, liquidity renders in the danger color and the row drops to the lower group:
-// a token nobody can exit is a worse trap than an unverified one.
+// Below this, liquidity renders in the danger color: a token nobody can exit is a worse
+// trap than an unverified one.
 const LOW_LIQUIDITY_USD = 10_000;
 
 // Base58 omits 0, O, I and l. Solana mints are 32-44 characters.
@@ -60,27 +60,27 @@ function volume24h(stats: TokenStats): number | null {
   return (stats.buyVolume ?? 0) + (stats.sellVolume ?? 0);
 }
 
-// Verified alone is not enough: Jupiter returns verified tokens with a few hundred dollars
-// of liquidity. Unknown liquidity counts as thin.
-function isTrusted(token: Token): boolean {
-  return token.isVerified && (token.liquidity ?? 0) >= LOW_LIQUIDITY_USD;
-}
-
 /**
- * Pins the first exact symbol match to the top, then splits the rest into trusted and
- * everything else. Jupiter's ordering is preserved inside each group - it already weighs
- * organic score, and the pin is what stops the split burying the token actually typed.
+ * Pins the exact symbol match to the top and leaves everything else in Jupiter's order.
+ *
+ * Jupiter already ranks by verification, liquidity and organic score. Checked against the
+ * live API on 2026-09-06: `USDC`, `BONK`, `JUP` and `TRUMP` each returned the real token
+ * first and the impersonators last - the two tokens literally named `USDC` land at 7 and 8.
+ * Re-grouping on a coarser verified-and-liquid rule only moved rows the wrong way, demoting
+ * verified `DJTx` below a divider that called it unverified.
+ *
+ * The pin is suppressed when several unverified tokens share the typed symbol: `BONKGUY`
+ * returns three, and decorating one as the match is a claim nothing here can support. A
+ * verified match settles it whenever there is one.
  */
 function arrange(results: Token[], query: string) {
   const symbol = query.trim().toLowerCase();
-  const pinIndex = results.findIndex((token) => token.symbol.toLowerCase() === symbol);
-  const pinned = pinIndex === -1 ? null : (results[pinIndex] ?? null);
-  const rest = results.filter((_, index) => index !== pinIndex);
-  return {
-    pinned,
-    trusted: rest.filter(isTrusted),
-    untrusted: rest.filter((token) => !isTrusted(token)),
-  };
+  const exact = results.filter((token) => token.symbol.toLowerCase() === symbol);
+  const pinned =
+    exact.find((token) => token.isVerified) ??
+    (exact.length === 1 ? exact[0] : null) ??
+    null;
+  return { pinned, rest: results.filter((token) => token !== pinned) };
 }
 
 /**
@@ -151,7 +151,7 @@ export default function SearchResults({
     );
   }
 
-  const { pinned, trusted, untrusted } = arrange(state.results, state.query);
+  const { pinned, rest } = arrange(state.results, state.query);
   // A base58 query means the user pasted a mint, so every row shows the address in place
   // of the name rather than waiting for a hover.
   const addressQuery = BASE58_MINT.test(state.query);
@@ -173,25 +173,7 @@ export default function SearchResults({
             exact
           />
         )}
-        {trusted.map((token) => (
-          <SearchRow
-            key={token.id}
-            token={token}
-            addressQuery={addressQuery}
-            onWatchlist={watchlist.has(token.id)}
-            exact={false}
-          />
-        ))}
-        {untrusted.length === 0 ? null : (
-          <li
-            role="presentation"
-            className="flex items-center gap-1.5 px-3 py-1 text-[11px] text-muted"
-          >
-            <span aria-hidden="true">⚠</span>
-            Unverified · low liquidity
-          </li>
-        )}
-        {untrusted.map((token) => (
+        {rest.map((token) => (
           <SearchRow
             key={token.id}
             token={token}
@@ -273,9 +255,10 @@ const ORGANIC_BAR: Record<OrganicScoreLabel, string> = {
 };
 
 /**
- * One result. Same-symbol impersonators are the failure mode this list guards against, so
- * an unverified token is rendered recessive - dimmed icon, muted symbol, launch origin -
- * and liquidity carries the danger color once it drops under the threshold.
+ * One result. Same-symbol impersonators are the failure mode this list guards against, and
+ * the row carries that itself rather than the list re-grouping around it: an unverified
+ * token reads recessive - dimmed icon, muted symbol, a `?` where the verified check sits,
+ * launch origin - and liquidity takes the danger color once it drops under the threshold.
  */
 function SearchRow({
   token,
@@ -294,6 +277,11 @@ function SearchRow({
   const volume = volume24h(token.stats["24h"]);
   const thin = token.liquidity !== null && token.liquidity < LOW_LIQUIDITY_USD;
   const organic = token.organicScore === null ? null : Math.round(token.organicScore);
+
+  // The pin answers "is this what you typed", not "is this safe". On an unverified match the
+  // accent would read as endorsement the row cannot back, so only a verified pin gets it;
+  // an unverified one keeps the position and the tag in neutral ink.
+  const endorsed = exact && token.isVerified;
 
   // The two layers swap by opacity rather than display, because the copy button has to stay
   // in the tab order while hidden - reaching it by keyboard is what reveals the address.
@@ -319,7 +307,7 @@ function SearchRow({
   return (
     <li
       className={`group ${GRID} border-l-2 px-3 py-2 text-sm ${
-        exact ? "border-accent bg-accent/5" : "border-transparent"
+        endorsed ? "border-accent bg-accent/5" : exact ? "border-muted" : "border-transparent"
       }`}
     >
       <div className="flex min-w-0 items-center gap-2">
@@ -343,13 +331,16 @@ function SearchRow({
             >
               {token.symbol}
             </span>
-            {/* Fixed width whether or not the check renders, so nothing after it moves. */}
-            <span className="w-3 shrink-0 text-center text-up">
-              {token.isVerified ? (
-                <>
-                  ✓<span className="sr-only">Verified</span>
-                </>
-              ) : null}
+            {/* Both states render into this one fixed-width slot, so nothing after it moves
+                between rows. Unverified gets a glyph of its own rather than an empty slot:
+                the row's most important fact should not be carried by an absence. */}
+            <span
+              className={`w-3 shrink-0 text-center ${token.isVerified ? "text-up" : "text-muted"}`}
+            >
+              {token.isVerified ? "✓" : "?"}
+              <span className="sr-only">
+                {token.isVerified ? "Verified" : "Unverified"}
+              </span>
             </span>
             {token.isVerified || token.launchpad === null ? null : (
               <span className="shrink-0 rounded border border-edge px-1 text-[10px] text-muted">
@@ -357,7 +348,11 @@ function SearchRow({
               </span>
             )}
             {exact ? (
-              <span className="shrink-0 rounded border border-accent/40 px-1 text-[10px] text-accent">
+              <span
+                className={`shrink-0 rounded border px-1 text-[10px] ${
+                  endorsed ? "border-accent/40 text-accent" : "border-edge text-muted"
+                }`}
+              >
                 Exact
               </span>
             ) : null}
