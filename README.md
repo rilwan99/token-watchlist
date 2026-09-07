@@ -6,13 +6,14 @@ React 19 + TypeScript on Next.js 16 (App Router), Tailwind v4.
 
 Deployed at <https://token-watchlist-sepia.vercel.app/>.
 
-## Screenshots
+## Preview
 
 **Desktop**
 
 ![Desktop watchlist table](docs/desktop.png)
 
 **Mobile**
+
 ![Mobile watchlist](docs/mobile.png)
 
 ## Run it
