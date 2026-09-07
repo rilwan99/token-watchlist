@@ -29,7 +29,17 @@ export default function Watchlist() {
     setIsRefreshing(true);
     try {
       const tokens = await fetchTokens(mints);
-      setMetrics(new Map(tokens.map((token) => [token.id, token])));
+      const requested = new Set(mints);
+      setMetrics((current) => {
+        // The response is the truth for every mint it was asked about, so a mint Jupiter no
+        // longer answers for drops back to dashes. A token starred while this was in flight
+        // was never requested, and keeps the metrics `add` put there.
+        const next = new Map(tokens.map((token) => [token.id, token]));
+        for (const [mint, token] of current) {
+          if (!requested.has(mint)) next.set(mint, token);
+        }
+        return next;
+      });
       setUpdatedAt(new Date());
       setError(null);
     } catch (caught) {

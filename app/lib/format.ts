@@ -6,6 +6,22 @@ function isNumber(value: number | null): value is number {
   return value !== null && Number.isFinite(value);
 }
 
+// Built once rather than per call. Both layouts render for every entry at every width, and the
+// search box re-renders the table on each keystroke, so these run a few hundred times a render -
+// and `toLocaleString` with an inline options object rebuilds the formatter every time.
+const PRICE_FORMAT = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const COMPACT_USD_FORMAT = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumSignificantDigits: 3,
+});
+const COMPACT_COUNT_FORMAT = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
 const SUBSCRIPT_DIGITS = "₀₁₂₃₄₅₆₇₈₉";
 
 function toSubscript(count: number): string {
@@ -22,7 +38,7 @@ function toSubscript(count: number): string {
  */
 export function formatPriceCompact(value: number | null): string {
   if (!isNumber(value)) return DASH;
-  if (value >= 1) return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (value >= 1) return `$${PRICE_FORMAT.format(value)}`;
   if (value >= 0.01) return `$${value.toFixed(4)}`;
   if (value <= 0) return "$0.00";
 
@@ -39,7 +55,7 @@ export function formatPriceCompact(value: number | null): string {
  */
 export function formatCompactUsd(value: number | null): string {
   if (!isNumber(value)) return DASH;
-  return `$${value.toLocaleString("en-US", { notation: "compact", maximumSignificantDigits: 3 })}`;
+  return `$${COMPACT_USD_FORMAT.format(value)}`;
 }
 
 /** Jupiter already returns percent units, so no x100. */
@@ -110,8 +126,5 @@ export function volume24h(stats: TokenStats): number | null {
 
 export function formatCount(value: number | null): string {
   if (!isNumber(value)) return DASH;
-  return value.toLocaleString("en-US", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  });
+  return COMPACT_COUNT_FORMAT.format(value);
 }

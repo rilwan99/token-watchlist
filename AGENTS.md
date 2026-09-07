@@ -50,6 +50,7 @@ Every flow above is in, on both layouts. Update this line as anything lands. The
 - Storage holds identity only — mint, symbol, name, icon URL, saved order, plus a `seeded` flag. Never metrics: a cached number is wrong the moment it is written.
 - `isMintAddress` in `app/lib/format.ts` is the only base58 check — storage narrowing, the route's batch guard, `isMintQuery` and the search row's address reveal all call it. Never inline a fresh one.
 - A stored mint Jupiter no longer returns keeps its row and its stored name, with dashes for every metric.
+- A refresh only speaks for the mints it requested: the response replaces those and anything added since the request went out is carried over.
 - Malformed or absent storage falls back to an empty list rather than throwing, and duplicate mints collapse on the way in. Two tabs are last-write-wins.
 - `TokenIcon` remembers the URL that failed, not a boolean. Rows are keyed by mint, so a boolean kept initials until reload even after Jupiter returned a working URL.
 - Blocked IPFS icons (`ERR_BLOCKED_BY_RESPONSE.NotSameOrigin`, from `Cross-Origin-Resource-Policy: same-origin`) are accepted console noise: no client-side change reaches that header and the initials fallback renders those rows correctly. A proxy route was rejected — a URL-taking proxy needs an SSRF allowlist and a cache policy for a cosmetic gain.
