@@ -52,6 +52,11 @@ There is no test script.
 - **Soft cap of ~50 tokens.** A direct consequence of the single-request design, and well above what one person actually monitors.
 - **Snapshot at load, not a live feed.** A manual refresh button and an explicit `Updated 2:32:07 PM`
 
+### Route hardening & failure states
+
+- **The API route is rate limited and caps query length.** It's a public URL in front of a paid API key, so nobody can script it and run up the bill — 60 requests a minute, far above what typing generates. It's counted per server instance, so it's a speed bump rather than a lock.
+- **Nothing fails to a blank page or a raw error.** A timeout returns HTML rather than JSON, so responses are parsed defensively instead of showing a parser complaint, and a render crash offers a Try again that rebuilds the list from storage.
+
 ### Search behaviour
 
 - **Results open a slot; they never cover the watchlist.** Floating a panel would hide a short list, and checking what you already hold is the reason it's on screen.

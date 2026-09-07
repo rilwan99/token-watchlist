@@ -1,9 +1,22 @@
 import { isMintAddress } from "@/app/lib/format";
+import { checkRateLimit } from "@/app/lib/rate-limit";
 import { searchUpstream } from "@/app/lib/tokens";
 
 const MAX_MINTS = 100;
+// Only the free-form path needs this: a batch is already bounded by MAX_MINTS times the 44
+// characters `isMintAddress` allows. A symbol or name longer than this is not a real search,
+// and this route is a public front for a keyed upstream.
+const MAX_QUERY_LENGTH = 64;
 
 export async function GET(request: Request) {
+  const { rateLimited, retryAfter } = checkRateLimit(request);
+  if (rateLimited) {
+    return Response.json(
+      { error: "Too many requests. Try again in a moment." },
+      { status: 429, headers: { "retry-after": String(retryAfter) } },
+    );
+  }
+
   const query = new URL(request.url).searchParams.get("query")?.trim();
 
   if (!query) {
@@ -30,6 +43,11 @@ export async function GET(request: Request) {
         { status: 400 },
       );
     }
+  } else if (query.length > MAX_QUERY_LENGTH) {
+    return Response.json(
+      { error: `Query is too long. Maximum is ${MAX_QUERY_LENGTH} characters.` },
+      { status: 400 },
+    );
   }
 
   try {

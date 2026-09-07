@@ -33,7 +33,20 @@ async function requestTokens(
     );
   }
 
-  const body: TokensResponse = await res.json();
+  // Not every response is JSON: a gateway timeout or platform error page is HTML, and the
+  // parser's complaint about it ("Unexpected token '<'") is not something to show a user.
+  let body: TokensResponse;
+  try {
+    body = await res.json();
+  } catch (caught) {
+    if (caught instanceof DOMException && caught.name === "AbortError") throw caught;
+    throw new Error(
+      res.ok
+        ? "The server sent a response that could not be read."
+        : `Request failed with status ${res.status}.`,
+    );
+  }
+
   if ("error" in body) throw new Error(body.error);
   if (!res.ok) throw new Error(`Request failed with status ${res.status}.`);
   return body.tokens;

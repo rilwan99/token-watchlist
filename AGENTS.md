@@ -61,6 +61,11 @@ Every flow above is in, on both layouts. Update this line as anything lands. The
 - Sort is session state in `token-table.tsx`, never persisted. `sortEntries` returns the saved order untouched when the sort is null, so storage stays the one source of order.
 - Five sortable keys: price, 24h change, market cap, liquidity, holders. Not volume — it has no desktop column, and a seventh would re-measure every fixed width. Nulls sort last in both directions; ties keep saved order through a stable sort.
 
+### The route and failure states
+
+- The route fronts a keyed upstream: `checkRateLimit` runs before anything else (60/min per forwarded IP, rejected requests included) and free-form queries cap at 64 characters — only the single-value path, since a batch is already bounded by `MAX_MINTS` and base58 length. In-memory and per-instance: a speed bump, not access control.
+- Nothing surfaces raw: `app/lib/api.ts` parses the body inside a try because an error page is HTML, and `app/error.tsx` is the segment boundary — it carries `page.tsx`'s `<main>` because it replaces that file's output, and Next 16 passes `retry`, not `reset`.
+
 ### Layout
 
 - One bounded surface card encloses both render paths — desktop table above 640px, mobile accordion below — with a header band and a manual-refresh footer. Empty lists keep the card and footer, omit the header band.
