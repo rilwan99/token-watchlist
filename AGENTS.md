@@ -63,7 +63,7 @@ Every flow above is in, on both layouts. Update this line as anything lands. The
 
 ### The route and failure states
 
-- The route fronts a keyed upstream: `checkRateLimit` runs before anything else (60/min per forwarded IP, rejected requests included) and free-form queries cap at 64 characters — only the single-value path, since a batch is already bounded by `MAX_MINTS` and base58 length. In-memory and per-instance: a speed bump, not access control.
+- The route fronts a keyed upstream: `checkRateLimit` runs before anything else (180/min per forwarded IP, rejected requests included, loose because one office NAT is one key) and free-form queries cap at 64 characters — only the single-value path, since a batch is already bounded by `MAX_MINTS` and base58 length. In-memory and per-instance: a speed bump, not access control.
 - Nothing surfaces raw: `app/lib/api.ts` parses the body inside a try because an error page is HTML, and `app/error.tsx` is the segment boundary — it carries `page.tsx`'s `<main>` because it replaces that file's output, and Next 16 passes `retry`, not `reset`.
 
 ### Layout

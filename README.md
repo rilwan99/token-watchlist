@@ -54,7 +54,7 @@ There is no test script.
 
 ### Route hardening & failure states
 
-- **The API route is rate limited and caps query length.** It's a public URL in front of a paid API key, so nobody can script it and run up the bill — 60 requests a minute, far above what typing generates. It's counted per server instance, so it's a speed bump rather than a lock.
+- **The API route is rate limited and caps query length.** It's a public URL in front of a paid API key, so nobody can script it and run up the bill. Set loose at 180 requests a minute — several times what real use generates — because everyone behind one office IP shares the budget. Counted per server instance, so it's a speed bump rather than a lock.
 - **Nothing fails to a blank page or a raw error.** A timeout returns HTML rather than JSON, so responses are parsed defensively instead of showing a parser complaint, and a render crash offers a Try again that rebuilds the list from storage.
 
 ### Search behaviour
