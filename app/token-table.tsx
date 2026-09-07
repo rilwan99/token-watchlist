@@ -50,11 +50,6 @@ export default function TokenTable({
   // silently stops the sticky header below from ever sticking. clip rounds the corners without one.
   return (
     <section className="overflow-clip rounded-xl border border-edge bg-surface">
-      {/*
-        The empty body is 105px: the desktop header band (41px) plus one row (64px). Removing the
-        last token then lands the copy in the space that row occupied and the footer never moves.
-        The copy is ~48px, and min-height lets it grow when the second line wraps on a narrow phone.
-      */}
       {entries.length === 0 ? (
         <div className="flex min-h-[105px] flex-col items-center justify-center px-6 py-6 text-center">
           <p className="text-base font-medium text-ink">Start your watchlist</p>
@@ -65,11 +60,6 @@ export default function TokenTable({
       ) : (
         <>
           <div className="min-[640px]:hidden">
-            {/*
-              The accordion has no header row to click, so the mobile sort is its own band. A
-              native select rather than a popup menu: the OS picker is the better target on a
-              phone and it costs no dismissal, focus or outside-click handling of ours.
-            */}
             <div className="flex items-center gap-2 border-b border-line bg-raised px-3 py-2">
               <span className="text-[11px] text-faint">Sort</span>
               <select
@@ -121,12 +111,6 @@ export default function TokenTable({
 
           <div className="hidden min-[640px]:block">
             <table className="w-full table-fixed text-left">
-              {/*
-                Token takes what the fixed columns leave, so each of those is the wider of its
-                header and its widest value, plus padding - nothing rounded up. "Market cap" is
-                the widest thing in its own column, and at 72px the labels had overflowed into
-                each other and read as one string. Market cap carries the 24px cluster gap.
-              */}
               <colgroup>
                 <col />
                 <col className="w-[98px]" />
@@ -136,16 +120,11 @@ export default function TokenTable({
                 <col className="w-[64px]" />
                 <col className="w-[32px]" />
               </colgroup>
-              {/*
-                Sticky because the units live in these labels and nowhere else, and a watchlist
-                longer than about nine rows scrolls them off the top of a laptop viewport.
-              */}
               <thead className="sticky top-0 z-10 whitespace-nowrap border-b border-edge bg-raised text-[11px] text-faint">
                 <tr>
                   <th scope="col" className="py-3 pl-4 pr-3 font-medium">Token</th>
                   <SortHeader label="Price" sortKey="price" sort={sort} onSort={cycle} />
                   <SortHeader label="24h" sortKey="change" sort={sort} onSort={cycle} />
-                  {/* 24px of extra lead separates the secondary cluster from the primary pair. */}
                   <SortHeader label="Market cap" sortKey="mcap" sort={sort} onSort={cycle} className="pl-6" />
                   <SortHeader label="Liquidity" sortKey="liquidity" sort={sort} onSort={cycle} />
                   <SortHeader label="Holders" sortKey="holders" sort={sort} onSort={cycle} />
@@ -175,16 +154,6 @@ export default function TokenTable({
   );
 }
 
-/**
- * A sortable column label. The caret is absolutely positioned inside the cell's own right
- * padding rather than added beside the label: every numeric column is measured to the wider of
- * its header and its widest value, so an inline glyph would take its width from the token
- * column, which already truncates the symbol at 640px. Nothing moves when the sort changes.
- *
- * An idle header looks inert, so an inactive column fades a faint down caret in on hover or
- * keyboard focus - the direction that first click applies. Opacity, not mount: the caret is
- * absolute either way, but fading keeps hover and the active state one visual idea.
- */
 function SortHeader({
   label,
   sortKey,
@@ -209,19 +178,17 @@ function SortHeader({
       <button
         type="button"
         onClick={() => onSort(sortKey)}
-        className={`w-full cursor-pointer px-3 py-3 text-right transition-colors hover:text-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
-          active === null ? "" : "text-ink"
-        } ${className}`}
+        className={`w-full cursor-pointer px-3 py-3 text-right transition-colors hover:text-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent ${active === null ? "" : "text-ink"
+          } ${className}`}
       >
         {label}
       </button>
       <SortCaret
         direction={active ?? "desc"}
-        className={`pointer-events-none absolute right-0 top-1/2 size-2 -translate-y-1/2 transition-opacity ${
-          active === null
-            ? "text-faint opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
-            : "text-ink opacity-100"
-        }`}
+        className={`pointer-events-none absolute right-0 top-1/2 size-2 -translate-y-1/2 transition-opacity ${active === null
+          ? "text-faint opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+          : "text-ink opacity-100"
+          }`}
       />
     </th>
   );

@@ -5,11 +5,6 @@ import type { OrganicScoreLabel, Token, TokenStats } from "@/app/lib/types";
 
 const ENDPOINT = "https://api.jup.ag/tokens/v2/search";
 
-// Jupiter defaults a name search to 20, and it matches names as well as symbols. `sol`
-// spends 14 of those 20 on tokenised equities matching "Solutions", "Solar" and "Solstice",
-// which pushes JitoSOL, mSOL and PSOL to ranks 18-20 and drops bSOL, dSOL, hSOL and BNSOL
-// off the response entirely. Only the free-form path sends this: a mint batch is already
-// bounded by the route's 100-mint cap and returns every mint asked for without it.
 const SEARCH_LIMIT = 50;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -25,7 +20,9 @@ function asString(value: unknown): string | null {
 }
 
 function asOrganicScoreLabel(value: unknown): OrganicScoreLabel | null {
-  return value === "high" || value === "medium" || value === "low" ? value : null;
+  return value === "high" || value === "medium" || value === "low"
+    ? value
+    : null;
 }
 
 function toStats(value: unknown): TokenStats {
@@ -65,22 +62,13 @@ function toToken(value: unknown): Token | null {
 /**
  * True when every comma-separated part is a mint address, which means the caller already
  * knows the token it wants - a pasted mint, or `fetchWatchlist` rehydrating stored mints.
- * Those results are returned untouched: filtering the batch path would drop a watched token
- * out of the table while its mint stayed in storage, so it could never come back.
  */
 function isMintQuery(query: string): boolean {
   return query.split(",").every((part) => isMintAddress(part.trim()));
 }
 
 /**
- * A token with null liquidity has no market at all, and a name search surfaces plenty of
- * them: none of the 14 that `sol` returns has a 24h change, nine have no price, and they
- * hold 2-12 addresses each. Every column this app renders is blank for them, so they are
- * not weaker results but empty ones.
- *
- * This is not a judgment about what a token is - liquid tokenised equities pass it and rank
- * first for their own symbols (`NVDAx`, $1.86M liquidity, 71K holders). Nor does it override
- * Jupiter's ranking, which places these rows at 4-17 and so is not handling them at all.
+ * A token with null liquidity has no market at all.
  */
 function hasMarket(token: Token): boolean {
   return token.liquidity !== null;

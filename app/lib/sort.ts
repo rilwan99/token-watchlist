@@ -5,8 +5,7 @@ export type SortKey = "price" | "change" | "mcap" | "liquidity" | "holders";
 export type SortState = { key: SortKey; direction: "asc" | "desc" };
 
 /**
- * The mobile control's menu. The desktop headers carry their own shorter labels - "24h" fits
- * an 84px column, "24h change" does not - so the two lists are deliberately not shared.
+ * The mobile control's menu.
  */
 export const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "price", label: "Price" },
@@ -31,9 +30,7 @@ function metric(key: SortKey, token: Token | undefined): number | null {
 
 /**
  * A view over the saved order, never a rewrite of it - storage keeps the user's order and a
- * null sort returns to it. Rows with no live value sort last in both directions, so a token
- * Jupiter no longer returns cannot win "cheapest", and ties keep the saved order, which a
- * stable sort gives for free.
+ * null sort returns to it.
  */
 export function sortEntries(
   entries: WatchEntry[],

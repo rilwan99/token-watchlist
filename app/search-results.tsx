@@ -117,9 +117,8 @@ export default function SearchResults({
 
   return (
     <div
-      className={`${PANEL} overflow-hidden transition-opacity ${
-        state.stale ? "opacity-50" : "opacity-100"
-      }`}
+      className={`${PANEL} overflow-hidden transition-opacity ${state.stale ? "opacity-50" : "opacity-100"
+        }`}
     >
       <ul aria-label="Search results" className={`${SCROLLER} overflow-y-auto`}>
         <ResultsHeader />
@@ -261,9 +260,8 @@ function SearchRow({
     <li
       ref={row}
       onMouseEnter={onHighlight}
-      className={`group ${GRID} scroll-mt-7 border-l-2 px-3 py-2 text-sm ${
-        endorsed ? "border-accent" : exact ? "border-muted" : "border-transparent"
-      } ${highlighted ? "bg-raised" : endorsed ? "bg-accent/5" : ""}`}
+      className={`group ${GRID} scroll-mt-7 border-l-2 px-3 py-2 text-sm ${endorsed ? "border-accent" : exact ? "border-muted" : "border-transparent"
+        } ${highlighted ? "bg-raised" : endorsed ? "bg-accent/5" : ""}`}
     >
       <div className="flex min-w-0 items-center gap-2">
         <TokenIcon
@@ -283,9 +281,8 @@ function SearchRow({
             <TokenStatus isVerified={token.isVerified} launchpad={token.launchpad} />
             {exact ? (
               <span
-                className={`shrink-0 rounded border px-1 text-[10px] ${
-                  endorsed ? "border-accent/40 text-accent" : "border-edge text-muted"
-                }`}
+                className={`shrink-0 rounded border px-1 text-[10px] ${endorsed ? "border-accent/40 text-accent" : "border-edge text-muted"
+                  }`}
               >
                 Exact
               </span>
@@ -339,11 +336,10 @@ function SearchRow({
           <>
             <span className="h-1 w-[26px] shrink-0 overflow-hidden rounded-full bg-edge">
               <span
-                className={`block h-full rounded-full ${
-                  token.organicScoreLabel === null
+                className={`block h-full rounded-full ${token.organicScoreLabel === null
                     ? "bg-muted"
                     : ORGANIC_BAR[token.organicScoreLabel]
-                }`}
+                  }`}
                 style={{ width: `${Math.min(100, Math.max(0, organic))}%` }}
               />
             </span>

@@ -31,9 +31,6 @@ export default function Watchlist() {
       const tokens = await fetchTokens(mints);
       const requested = new Set(mints);
       setMetrics((current) => {
-        // The response is the truth for every mint it was asked about, so a mint Jupiter no
-        // longer answers for drops back to dashes. A token starred while this was in flight
-        // was never requested, and keeps the metrics `add` put there.
         const next = new Map(tokens.map((token) => [token.id, token]));
         for (const [mint, token] of current) {
           if (!requested.has(mint)) next.set(mint, token);
@@ -184,14 +181,12 @@ export default function Watchlist() {
         </div>
         <div
           inert={!open}
-          className={`overflow-hidden transition-[height] duration-200 ease-out motion-reduce:transition-none ${
-            open ? "h-[269px] min-[480px]:h-[297px]" : "h-0"
-          }`}
+          className={`overflow-hidden transition-[height] duration-200 ease-out motion-reduce:transition-none ${open ? "h-[269px] min-[480px]:h-[297px]" : "h-0"
+            }`}
         >
           <div
-            className={`flex h-full flex-col pt-1 max-[479px]:transition-[opacity,transform] max-[479px]:duration-200 max-[479px]:ease-out motion-reduce:transition-none ${
-              open ? "max-[479px]:translate-y-0 max-[479px]:opacity-100" : "max-[479px]:-translate-y-2 max-[479px]:opacity-0"
-            }`}
+            className={`flex h-full flex-col pt-1 max-[479px]:transition-[opacity,transform] max-[479px]:duration-200 max-[479px]:ease-out motion-reduce:transition-none ${open ? "max-[479px]:translate-y-0 max-[479px]:opacity-100" : "max-[479px]:-translate-y-2 max-[479px]:opacity-0"
+              }`}
           >
             <SearchResults
               state={search}

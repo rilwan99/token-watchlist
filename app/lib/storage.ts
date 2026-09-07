@@ -5,8 +5,6 @@ const SOL_MINT = "So11111111111111111111111111111111111111112";
 const ENTRIES_KEY = "watchlist:tokens";
 const SEEDED_KEY = "watchlist:seeded";
 
-// Identity only. The icon URL is left null so the first fetch fills it in rather than this
-// file carrying a CDN path that can rot.
 const SOL_ENTRY: WatchEntry = {
   mint: SOL_MINT,
   symbol: "SOL",
@@ -50,7 +48,7 @@ export function saveEntries(entries: WatchEntry[]): void {
 /**
  * Reads the saved watchlist, in saved order. Anything unreadable - absent, not JSON, not an
  * array, an array of something else, a second tab mid-write - falls back to an empty list
- * rather than throwing, because there is no repair worth attempting on a list of favourites.
+ * rather than throwing.
  */
 export function loadEntries(): WatchEntry[] {
   try {

@@ -1,7 +1,5 @@
 /**
  * What localStorage holds: enough to paint a row on reload, and nothing that goes stale.
- * Market data is deliberately absent - a cached price is wrong the moment it is written.
- * `mint` is the key everywhere; symbols collide (three tokens answer to `BONKGUY`).
  */
 export type WatchEntry = {
   mint: string;
